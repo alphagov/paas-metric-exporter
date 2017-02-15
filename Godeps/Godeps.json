@@ -2,9 +2,6 @@
 	"ImportPath": "github.com/pivotal-cf/graphite-nozzle",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v74",
-	"Packages": [
-		"."
-	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/alecthomas/template",
@@ -19,8 +16,8 @@
 			"Rev": "6b4e7dc5e3143b85ea77909c72caf89416fc2915"
 		},
 		{
-			"ImportPath": "github.com/cloudfoundry-incubator/uaago",
-			"Rev": "1627a524bb8637bae9bbb61c42593db3e436d08f"
+			"ImportPath": "github.com/cloudfoundry-community/go-cfclient",
+			"Rev": "4baef162cb52acb882b0cb991756604c7fa4c580"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry/noaa",
@@ -50,6 +47,22 @@
 		{
 			"ImportPath": "github.com/quipo/statsd/event",
 			"Rev": "1090ab4693b587d42fbf75c2cc64a031a9f22a4b"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "07b51741c1d6423d4a6abab1c49940ec09cb1aaf"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/clientcredentials",
+			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2/internal",
+			"Rev": "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
 		},
 		{
 			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
