@@ -71,7 +71,9 @@ func main() {
 
 	go func() {
 		for err := range errorChan {
-			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err.Error())
+			}
 		}
 	}()
 
