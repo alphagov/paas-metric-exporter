@@ -68,7 +68,6 @@ func main() {
 
 	msgChan := make(chan *events.Envelope)
 	errorChan := make(chan error)
-	noaaConsumer := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 
 	go func() {
 		for err := range errorChan {
@@ -78,11 +77,11 @@ func main() {
 
 	go func() {
 		applications := AppMutex{}
-		applications.watch = make(map[string]chan struct{})
+		applications.watch = make(map[string]*consumer.Consumer)
 		applications.mutex = &sync.Mutex{}
 
 		for {
-			err := updateApps(client, applications, msgChan, errorChan, noaaConsumer)
+			err := updateApps(client, applications, msgChan, errorChan)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -136,11 +135,11 @@ func main() {
 
 // AppMutex should consit of a lock and the map of applications.
 type AppMutex struct {
-	watch map[string]chan struct{}
+	watch map[string]*consumer.Consumer
 	mutex *sync.Mutex
 }
 
-func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *events.Envelope, errorChan chan error, noaaConsumer *consumer.Consumer) error {
+func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *events.Envelope, errorChan chan error) error {
 	applications.mutex.Lock()
 	defer applications.mutex.Unlock()
 
@@ -160,9 +159,9 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 	for _, app := range apps {
 		runningApps[app.Guid] = true
 		if _, ok := applications.watch[app.Guid]; !ok {
-			applications.watch[app.Guid] = make(chan struct{})
+			conn := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+			msg, err := conn.Stream(app.Guid, authToken)
 
-			msg, err := noaaConsumer.Stream(app.Guid, authToken)
 			go func() {
 				for m := range msg {
 					msgChan <- m
@@ -173,13 +172,14 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 					errorChan <- e
 				}
 			}()
+
+			applications.watch[app.Guid] = conn
 		}
 	}
 
 	for appGuid, _ := range applications.watch {
 		if _, ok := runningApps[appGuid]; !ok {
-			applications.watch[appGuid] <- struct{}{}
-			close(applications.watch[appGuid])
+			applications.watch[appGuid].Close()
 			delete(applications.watch, appGuid)
 		}
 	}
