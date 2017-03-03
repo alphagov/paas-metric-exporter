@@ -1,8 +1,5 @@
 package main
 
-// Inspired by the noaa firehose sample script
-// https://github.com/cloudfoundry/noaa/blob/master/firehose_sample/main.go
-
 import (
 	"crypto/tls"
 	"fmt"
@@ -21,32 +18,25 @@ import (
 
 var (
 	apiEndpoint       = kingpin.Flag("api-endpoint", "API endpoint").Default("https://api.10.244.0.34.xip.io").OverrideDefaultFromEnvar("API_ENDPOINT").String()
-	subscriptionId    = kingpin.Flag("subscription-id", "Id for the subscription.").Default("firehose").OverrideDefaultFromEnvar("SUBSCRIPTION_ID").String()
 	statsdEndpoint    = kingpin.Flag("statsd-endpoint", "Statsd endpoint").Default("10.244.11.2:8125").OverrideDefaultFromEnvar("STATSD_ENDPOINT").String()
 	statsdPrefix      = kingpin.Flag("statsd-prefix", "Statsd prefix").Default("mycf.").OverrideDefaultFromEnvar("STATSD_PREFIX").String()
 	prefixJob         = kingpin.Flag("prefix-job", "Prefix metric names with job.index").Default("false").OverrideDefaultFromEnvar("PREFIX_JOB").Bool()
 	username          = kingpin.Flag("username", "UAA username.").Default("").OverrideDefaultFromEnvar("USERNAME").String()
 	password          = kingpin.Flag("password", "UAA password.").Default("").OverrideDefaultFromEnvar("PASSWORD").String()
-	clientID          = kingpin.Flag("client-id", "Client ID.").Default("").OverrideDefaultFromEnvar("CLIENT_ID").String()
-	clientSecret      = kingpin.Flag("client-secret", "Client Secret.").Default("").OverrideDefaultFromEnvar("CLIENT_SECRET").String()
 	skipSSLValidation = kingpin.Flag("skip-ssl-validation", "Please don't").Default("false").OverrideDefaultFromEnvar("SKIP_SSL_VALIDATION").Bool()
 	debug             = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
 	updateFrequency   = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
-	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
+	// metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
 )
 
 func main() {
 	kingpin.Parse()
 
-	// FIXME We should ignore the firehose for the time being, making Client ID
-	// and Secret redundant.
 	c := &cfclient.Config{
 		ApiAddress:        *apiEndpoint,
 		SkipSslValidation: *skipSSLValidation,
 		Username:          *username,
 		Password:          *password,
-		ClientID:          *clientID,
-		ClientSecret:      *clientSecret,
 	}
 
 	client, err := cfclient.NewClient(c)
