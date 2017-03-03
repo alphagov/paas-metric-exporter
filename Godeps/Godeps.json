@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/alphagov/paas-cf-apps-statsd",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v74",
+	"GodepVersion": "v79",
 	"Deps": [
 		{
 			"ImportPath": "github.com/alecthomas/template",
@@ -45,17 +45,17 @@
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/gogoproto",
-			"Comment": "v0.3-154-g83faaee",
+			"Comment": "v0.3-154-g83faaee7",
 			"Rev": "83faaee7bbbdf0c59310ec67d340bc0cbe77053f"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/proto",
-			"Comment": "v0.3-154-g83faaee",
+			"Comment": "v0.3-154-g83faaee7",
 			"Rev": "83faaee7bbbdf0c59310ec67d340bc0cbe77053f"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/protoc-gen-gogo/descriptor",
-			"Comment": "v0.3-154-g83faaee",
+			"Comment": "v0.3-154-g83faaee7",
 			"Rev": "83faaee7bbbdf0c59310ec67d340bc0cbe77053f"
 		},
 		{
