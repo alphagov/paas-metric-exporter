@@ -138,8 +138,6 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 		return err
 	}
 
-	consumer := noaa.NewConsumer(*dopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
-
 	apps, err := client.ListApps()
 	if err != nil {
 		return err
