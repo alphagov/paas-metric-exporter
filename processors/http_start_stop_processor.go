@@ -3,7 +3,7 @@ package processors
 import (
 	"errors"
 	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/pivotal-cf/graphite-nozzle/metrics"
+	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"strconv"
 	"strings"
 )

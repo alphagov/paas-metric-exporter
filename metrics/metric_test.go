@@ -3,7 +3,7 @@ package metrics_test
 import (
 	"errors"
 
-	. "github.com/pivotal-cf/graphite-nozzle/metrics"
+	. "github.com/alphagov/paas-cf-apps-statsd/metrics"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

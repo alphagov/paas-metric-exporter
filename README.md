@@ -30,7 +30,7 @@ Once you've met all the prerequisites, you'll need to download the library and i
 ```
 mkdir -p $GOPATH/src/github.com/pivotal-cf
 cd $GOPATH/src/github.com/pivotal-cf
-git clone git@github.com:pivotal-cf/graphite-nozzle.git
+git clone git@github.com:alphagov/paas-cf-apps-statsd.git
 cd graphite-nozzle
 godep restore
 godep go build
