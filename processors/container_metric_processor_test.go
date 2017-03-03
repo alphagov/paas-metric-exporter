@@ -2,7 +2,7 @@ package processors_test
 
 import (
 	"github.com/cloudfoundry/noaa/events"
-	. "github.com/pivotal-cf/graphite-nozzle/processors"
+	. "github.com/alphagov/paas-cf-apps-statsd/processors"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

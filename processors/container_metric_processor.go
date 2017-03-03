@@ -2,8 +2,9 @@ package processors
 
 import (
 	"github.com/cloudfoundry/noaa/events"
-	"github.com/pivotal-cf/graphite-nozzle/metrics"
 	"strconv"
+
+	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 )
 
 type ContainerMetricProcessor struct{}
