@@ -6,7 +6,6 @@ import (
 
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
@@ -80,15 +79,12 @@ var _ = Describe("Main", func() {
 	})
 
 	Describe("updateApps", func() {
-		var watchers AppMutex
+		var watchers map[string]*consumer.Consumer
 		var apps []cfclient.App
 
 		Context("no watchers and no running apps", func() {
 			BeforeEach(func() {
-				watchers = AppMutex{
-					watch: map[string]*consumer.Consumer{},
-					mutex: &sync.Mutex{},
-				}
+				watchers = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{}
 
 				apiServer.AppendHandlers(
@@ -101,17 +97,14 @@ var _ = Describe("Main", func() {
 
 			It("should not start any watchers", func() {
 				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
-				Expect(watchers.watch).To(BeEmpty())
+				Expect(watchers).To(BeEmpty())
 				Consistently(msgChan).Should(BeEmpty())
 			})
 		})
 
 		Context("no watchers and three running apps", func() {
 			BeforeEach(func() {
-				watchers = AppMutex{
-					watch: map[string]*consumer.Consumer{},
-					mutex: &sync.Mutex{},
-				}
+				watchers = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{
 					{Guid: "11111111-1111-1111-1111-111111111111"},
 					{Guid: "22222222-2222-2222-2222-222222222222"},
@@ -147,8 +140,8 @@ var _ = Describe("Main", func() {
 					Eventually(msgChan).Should(Receive(&event))
 					appGuid := *event.ContainerMetric.ApplicationId
 
-					Expect(watchers.watch).To(HaveKey(appGuid))
-					Expect(watchers.watch[appGuid].Close()).To(Succeed())
+					Expect(watchers).To(HaveKey(appGuid))
+					Expect(watchers[appGuid].Close()).To(Succeed())
 				}
 			})
 		})

@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
@@ -66,12 +65,10 @@ func main() {
 	}()
 
 	go func() {
-		applications := AppMutex{}
-		applications.watch = make(map[string]*consumer.Consumer)
-		applications.mutex = &sync.Mutex{}
+		apps := make(map[string]*consumer.Consumer)
 
 		for {
-			err := updateApps(client, applications, msgChan, errorChan)
+			err := updateApps(client, apps, msgChan, errorChan)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -123,16 +120,7 @@ func main() {
 	}
 }
 
-// AppMutex should consit of a lock and the map of applications.
-type AppMutex struct {
-	watch map[string]*consumer.Consumer
-	mutex *sync.Mutex
-}
-
-func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *events.Envelope, errorChan chan error) error {
-	applications.mutex.Lock()
-	defer applications.mutex.Unlock()
-
+func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consumer, msgChan chan *events.Envelope, errorChan chan error) error {
 	authToken, err := client.GetToken()
 	if err != nil {
 		return err
@@ -146,7 +134,7 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 	runningApps := map[string]bool{}
 	for _, app := range apps {
 		runningApps[app.Guid] = true
-		if _, ok := applications.watch[app.Guid]; !ok {
+		if _, ok := watchedApps[app.Guid]; !ok {
 			conn := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 			msg, err := conn.Stream(app.Guid, authToken)
 
@@ -163,14 +151,14 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 				}
 			}()
 
-			applications.watch[app.Guid] = conn
+			watchedApps[app.Guid] = conn
 		}
 	}
 
-	for appGuid, _ := range applications.watch {
+	for appGuid, _ := range watchedApps {
 		if _, ok := runningApps[appGuid]; !ok {
-			applications.watch[appGuid].Close()
-			delete(applications.watch, appGuid)
+			watchedApps[appGuid].Close()
+			delete(watchedApps, appGuid)
 		}
 	}
 
