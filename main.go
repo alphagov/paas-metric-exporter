@@ -71,9 +71,7 @@ func main() {
 
 	go func() {
 		for err := range errorChan {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%v\n", err.Error())
-			}
+			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
 		}
 	}()
 
@@ -171,7 +169,9 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 			}()
 			go func() {
 				for e := range err {
-					errorChan <- e
+					if e != nil {
+						errorChan <- e
+					}
 				}
 			}()
 
