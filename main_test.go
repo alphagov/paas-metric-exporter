@@ -59,8 +59,8 @@ var _ = Describe("Main", func() {
 		client, err = cfclient.NewClient(config)
 		Expect(err).ToNot(HaveOccurred())
 
-		msgChan = make(chan *events.Envelope)
-		errChan = make(chan error)
+		msgChan = make(chan *events.Envelope, 10)
+		errChan = make(chan error, 10)
 	})
 
 	AfterEach(func() {
