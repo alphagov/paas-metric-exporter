@@ -143,12 +143,14 @@ var _ = Describe("Main", func() {
 				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
 				Expect(watchers.watch).To(HaveLen(len(apps)))
 
-				for _, app := range apps {
-					for i := 0; i < 3; i++ {
-						Eventually(msgChan).Should(Receive())
-					}
-					Expect(watchers.watch[app.Guid].Close()).To(MatchError("websocket: close sent"))
-					Eventually(errChan).Should(Receive(MatchError("EOF")))
+				var event *events.Envelope
+				for i := 0; i < len(apps); i++ {
+					Eventually(msgChan).Should(Receive(&event))
+					appGuid := *event.ContainerMetric.ApplicationId
+					Expect(watchers.watch).To(HaveKey(appGuid))
+
+					Expect(watchers.watch[appGuid].Close()).To(Succeed())
+					Eventually(errChan).Should(Receive(nil))
 				}
 			})
 		})
@@ -253,10 +255,14 @@ func testWebsocketHandler(appGuid string) func(w http.ResponseWriter, r *http.Re
 		cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		defer conn.WriteControl(websocket.CloseMessage, cm, time.Time{})
 
-		for i := 0; i < 3; i++ {
-			buf, _ := proto.Marshal(event)
-			err := conn.WriteMessage(websocket.BinaryMessage, buf)
-			Expect(err).ToNot(HaveOccurred())
+		buf, _ := proto.Marshal(event)
+		err = conn.WriteMessage(websocket.BinaryMessage, buf)
+		Expect(err).ToNot(HaveOccurred())
+
+		for {
+			if _, _, err := conn.NextReader(); err != nil {
+				break
+			}
 		}
 	}
 }
