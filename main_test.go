@@ -141,16 +141,14 @@ var _ = Describe("Main", func() {
 
 			It("should start three watchers", func() {
 				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
-				Expect(watchers.watch).To(HaveLen(len(apps)))
 
 				var event *events.Envelope
 				for i := 0; i < len(apps); i++ {
 					Eventually(msgChan).Should(Receive(&event))
 					appGuid := *event.ContainerMetric.ApplicationId
-					Expect(watchers.watch).To(HaveKey(appGuid))
 
+					Expect(watchers.watch).To(HaveKey(appGuid))
 					Expect(watchers.watch[appGuid].Close()).To(Succeed())
-					Eventually(errChan).Should(Receive(nil))
 				}
 			})
 		})
