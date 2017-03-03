@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
-	"github.com/cloudfoundry/noaa"
-	"github.com/cloudfoundry/noaa/events"
+	"github.com/cloudfoundry/noaa/consumer"
+	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/pivotal-cf/graphite-nozzle/metrics"
 	"github.com/pivotal-cf/graphite-nozzle/processors"
 	"github.com/quipo/statsd"
@@ -58,7 +58,6 @@ func main() {
 	httpStartStopProcessor := processors.NewHttpStartStopProcessor()
 	valueMetricProcessor := processors.NewValueMetricProcessor()
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
-	heartbeatProcessor := processors.NewHeartbeatProcessor()
 	counterProcessor := processors.NewCounterProcessor()
 
 	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
@@ -69,7 +68,7 @@ func main() {
 
 	msgChan := make(chan *events.Envelope)
 	errorChan := make(chan error)
-	consumer := noaa.NewConsumer(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+	noaaConsumer := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 
 	go func() {
 		for err := range errorChan {
@@ -83,7 +82,7 @@ func main() {
 		applications.mutex = &sync.Mutex{}
 
 		for {
-			err := updateApps(client, applications, msgChan, errorChan, consumer)
+			err := updateApps(client, applications, msgChan, errorChan, noaaConsumer)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -96,15 +95,13 @@ func main() {
 	for msg := range msgChan {
 		eventType := msg.GetEventType()
 
-		// graphite-nozzle can handle CounterEvent, ContainerMetric, Heartbeat,
+		// graphite-nozzle can handle CounterEvent, ContainerMetric,
 		// HttpStartStop and ValueMetric events
 		switch eventType {
 		case events.Envelope_ContainerMetric:
 			processedMetrics, proc_err = containerMetricProcessor.Process(msg)
 		case events.Envelope_CounterEvent:
 			processedMetrics, proc_err = counterProcessor.Process(msg)
-		case events.Envelope_Heartbeat:
-			processedMetrics, proc_err = heartbeatProcessor.Process(msg)
 		case events.Envelope_HttpStartStop:
 			processedMetrics, proc_err = httpStartStopProcessor.Process(msg)
 		case events.Envelope_ValueMetric:
@@ -143,7 +140,7 @@ type AppMutex struct {
 	mutex *sync.Mutex
 }
 
-func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *events.Envelope, errorChan chan error, consumer *noaa.Consumer) error {
+func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *events.Envelope, errorChan chan error, noaaConsumer *consumer.Consumer) error {
 	applications.mutex.Lock()
 	defer applications.mutex.Unlock()
 
@@ -164,7 +161,18 @@ func updateApps(client *cfclient.Client, applications AppMutex, msgChan chan *ev
 		runningApps[app.Guid] = true
 		if _, ok := applications.watch[app.Guid]; !ok {
 			applications.watch[app.Guid] = make(chan struct{})
-			go consumer.Stream(app.Guid, authToken, msgChan, errorChan, applications.watch[app.Guid])
+
+			msg, err := noaaConsumer.Stream(app.Guid, authToken)
+			go func() {
+				for m := range msg {
+					msgChan <- m
+				}
+			}()
+			go func() {
+				for e := range err {
+					errorChan <- e
+				}
+			}()
 		}
 	}
 
