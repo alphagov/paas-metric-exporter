@@ -154,6 +154,79 @@ var _ = Describe("Main", func() {
 				}
 			})
 		})
+
+		Context("three watchers and two apps replaced", func() {
+			var appsBefore []cfclient.App
+
+			BeforeEach(func() {
+				watchers = map[string]*consumer.Consumer{}
+				appsBefore = []cfclient.App{
+					{Guid: "11111111-1111-1111-1111-111111111111"},
+					{Guid: "22222222-2222-2222-2222-222222222222"},
+					{Guid: "33333333-3333-3333-3333-333333333333"},
+				}
+				apps = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333"},
+					{Guid: "44444444-4444-4444-4444-444444444444"},
+					{Guid: "55555555-5555-5555-5555-555555555555"},
+				}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBefore)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+					),
+				)
+			})
+
+			It("should stop two old watchers and start two new watchers", func() {
+				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+				for i := 0; i < len(appsBefore); i++ {
+					Eventually(msgChan).Should(Receive())
+				}
+
+				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+
+				stoppedApps := appsBefore[:2]
+				newApps := apps[1:]
+				var connected func() int
+
+				for _, app := range stoppedApps {
+					connected = func() int {
+						return tcHandler.Connected(app.Guid)
+					}
+					Expect(watchers).ToNot(HaveKey(app.Guid))
+					Eventually(connected).Should(Equal(0))
+				}
+
+				var event *events.Envelope
+				appEvents := map[string]*events.Envelope{}
+				for i := 0; i < len(newApps); i++ {
+					Eventually(msgChan).Should(Receive(&event))
+					appEvents[*event.ContainerMetric.ApplicationId] = event
+				}
+
+				for _, app := range newApps {
+					Expect(appEvents).To(HaveKey(app.Guid))
+				}
+
+				for _, app := range apps {
+					connected = func() int {
+						return tcHandler.Connected(app.Guid)
+					}
+
+					Expect(watchers).To(HaveKey(app.Guid))
+					Eventually(connected).Should(Equal(1))
+
+					Expect(watchers[app.Guid].Close()).To(Succeed())
+					Eventually(connected).Should(Equal(0))
+				}
+			})
+		})
 	})
 })
 
