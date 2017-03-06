@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -31,11 +32,22 @@ var (
 func main() {
 	kingpin.Parse()
 
+	var ups UPS
+	preUps := os.Getenv("VCAP_SERVICES")
+
+	if preUps != "" {
+		json.Unmarshal([]byte(preUps), &ups)
+	}
+
+	if !ups.First().Generated {
+		fmt.Printf("More than one set of user provided variables have been found... Using '%s' for this run.\n", ups.First().Name)
+	}
+
 	c := &cfclient.Config{
-		ApiAddress:        *apiEndpoint,
-		SkipSslValidation: *skipSSLValidation,
-		Username:          *username,
-		Password:          *password,
+		ApiAddress:        ups.First().Credentials.GetStringValue("APIEndpoint", *apiEndpoint),
+		SkipSslValidation: ups.First().Credentials.GetBoolValue("SkipSslValidation", *skipSSLValidation),
+		Username:          ups.First().Credentials.GetStringValue("Username", *username),
+		Password:          ups.First().Credentials.GetStringValue("Password", *password),
 	}
 
 	client, err := cfclient.NewClient(c)
