@@ -6,6 +6,8 @@ import (
 
 	"net/http"
 	"net/url"
+	"regexp"
+	"sync"
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
@@ -22,6 +24,7 @@ var _ = Describe("Main", func() {
 		client    *cfclient.Client
 		apiServer *ghttp.Server
 		tcServer  *ghttp.Server
+		tcHandler testWebsocketHandler
 		msgChan   chan *events.Envelope
 		errChan   chan error
 	)
@@ -64,6 +67,12 @@ var _ = Describe("Main", func() {
 			),
 		)
 
+		tcHandler = testWebsocketHandler{
+			connected: map[string]int{},
+			mutex:     &sync.RWMutex{},
+		}
+		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
+
 		client, err = cfclient.NewClient(config)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -99,6 +108,7 @@ var _ = Describe("Main", func() {
 				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
 				Expect(watchers).To(BeEmpty())
 				Consistently(msgChan).Should(BeEmpty())
+				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
 
@@ -117,36 +127,37 @@ var _ = Describe("Main", func() {
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
 					),
 				)
-
-				tcServer.RouteToHandler(
-					"GET", "/apps/11111111-1111-1111-1111-111111111111/stream",
-					testWebsocketHandler("11111111-1111-1111-1111-111111111111"),
-				)
-				tcServer.RouteToHandler(
-					"GET", "/apps/22222222-2222-2222-2222-222222222222/stream",
-					testWebsocketHandler("22222222-2222-2222-2222-222222222222"),
-				)
-				tcServer.RouteToHandler(
-					"GET", "/apps/33333333-3333-3333-3333-333333333333/stream",
-					testWebsocketHandler("33333333-3333-3333-3333-333333333333"),
-				)
 			})
 
-			It("should start three watchers", func() {
+			It("should start three watchers and disconnect when requested", func() {
 				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
 
 				var event *events.Envelope
+				appEvents := map[string]*events.Envelope{}
 				for i := 0; i < len(apps); i++ {
 					Eventually(msgChan).Should(Receive(&event))
-					appGuid := *event.ContainerMetric.ApplicationId
+					appEvents[*event.ContainerMetric.ApplicationId] = event
+				}
 
-					Expect(watchers).To(HaveKey(appGuid))
-					Expect(watchers[appGuid].Close()).To(Succeed())
+				var connected func() int
+				for _, app := range apps {
+					connected = func() int {
+						return tcHandler.Connected(app.Guid)
+					}
+
+					Expect(appEvents).To(HaveKey(app.Guid))
+					Expect(watchers).To(HaveKey(app.Guid))
+					Eventually(connected).Should(Equal(1))
+
+					Expect(watchers[app.Guid].Close()).To(Succeed())
+					Eventually(connected).Should(Equal(0))
 				}
 			})
 		})
 	})
+})
 
+var _ = Describe("test helpers", func() {
 	Describe("testAppResponse", func() {
 		var apps []cfclient.App
 
@@ -220,40 +231,70 @@ func testAppResponse(apps []cfclient.App) cfclient.AppResponse {
 	return resp
 }
 
-func testWebsocketHandler(appGuid string) func(w http.ResponseWriter, r *http.Request) {
-	event := &events.Envelope{
-		ContainerMetric: &events.ContainerMetric{
-			ApplicationId: proto.String(appGuid),
-			InstanceIndex: proto.Int32(1),
-			CpuPercentage: proto.Float64(2),
-			MemoryBytes:   proto.Uint64(3),
-			DiskBytes:     proto.Uint64(4),
-		},
-		EventType: events.Envelope_ContainerMetric.Enum(),
-		Origin:    proto.String("fake-origin-1"),
-		Timestamp: proto.Int64(time.Now().UnixNano()),
+func testNewEvent(appGuid string) *events.Envelope {
+	metric := &events.ContainerMetric{
+		ApplicationId: proto.String(appGuid),
+		InstanceIndex: proto.Int32(1),
+		CpuPercentage: proto.Float64(2),
+		MemoryBytes:   proto.Uint64(3),
+		DiskBytes:     proto.Uint64(4),
 	}
+	event := &events.Envelope{
+		ContainerMetric: metric,
+		EventType:       events.Envelope_ContainerMetric.Enum(),
+		Origin:          proto.String("fake-origin-1"),
+		Timestamp:       proto.Int64(time.Now().UnixNano()),
+	}
+
+	return event
+}
+
+type testWebsocketHandler struct {
+	connected map[string]int
+	mutex     *sync.RWMutex
+}
+
+func (t *testWebsocketHandler) Connected(appGuid string) int {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+
+	return t.connected[appGuid]
+}
+
+func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	re := regexp.MustCompile(`/apps/([^/]+)/stream`)
+	match := re.FindStringSubmatch(r.URL.Path)
+	Expect(match).To(HaveLen(2), "unable to extract app GUID from request path")
+	appGuid := match[1]
+
+	t.mutex.Lock()
+	t.connected[appGuid] += 1
+	t.mutex.Unlock()
+
+	defer func() {
+		t.mutex.Lock()
+		t.connected[appGuid] -= 1
+		defer t.mutex.Unlock()
+	}()
 
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		Expect(err).NotTo(HaveOccurred())
-		defer conn.Close()
+	conn, err := upgrader.Upgrade(w, r, nil)
+	Expect(err).NotTo(HaveOccurred())
+	defer conn.Close()
 
-		cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		defer conn.WriteControl(websocket.CloseMessage, cm, time.Time{})
+	cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+	defer conn.WriteControl(websocket.CloseMessage, cm, time.Time{})
 
-		buf, _ := proto.Marshal(event)
-		err = conn.WriteMessage(websocket.BinaryMessage, buf)
-		Expect(err).ToNot(HaveOccurred())
+	buf, _ := proto.Marshal(testNewEvent(appGuid))
+	err = conn.WriteMessage(websocket.BinaryMessage, buf)
+	Expect(err).ToNot(HaveOccurred())
 
-		for {
-			if _, _, err := conn.NextReader(); err != nil {
-				break
-			}
+	for {
+		if _, _, err := conn.NextReader(); err != nil {
+			break
 		}
 	}
 }
