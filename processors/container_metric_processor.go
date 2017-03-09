@@ -1,7 +1,7 @@
 package processors
 
 import (
-	"github.com/cloudfoundry/noaa/events"
+	"errors"
 	"strconv"
 
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
@@ -13,43 +13,55 @@ func NewContainerMetricProcessor() *ContainerMetricProcessor {
 	return &ContainerMetricProcessor{}
 }
 
-func (p *ContainerMetricProcessor) Process(e *events.Envelope) ([]metrics.Metric, error) {
+func (p *ContainerMetricProcessor) Process(stream *metrics.Stream) ([]metrics.Metric, error) {
 	processedMetrics := make([]metrics.Metric, 3)
-	containerMetricEvent := e.GetContainerMetric()
+	var err error
 
-	processedMetrics[0] = metrics.Metric(p.ProcessContainerMetricCPU(containerMetricEvent))
-	processedMetrics[1] = metrics.Metric(p.ProcessContainerMetricMemory(containerMetricEvent))
-	processedMetrics[2] = metrics.Metric(p.ProcessContainerMetricDisk(containerMetricEvent))
-
+	for i, metricType := range []string{"cpu", "mem", "dsk"} {
+		processedMetrics[i], err = p.ProcessContainerMetric(metricType, stream)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return processedMetrics, nil
 }
 
-func (p *ContainerMetricProcessor) ProcessContainerMetricCPU(e *events.ContainerMetric) metrics.GaugeMetric {
-	appID := e.GetApplicationId()
-	instanceIndex := strconv.Itoa(int(e.GetInstanceIndex()))
+func (p *ContainerMetricProcessor) ProcessContainerMetric(metricType string, stream *metrics.Stream) (metrics.GaugeMetric, error) {
+	containerMetricEvent := stream.Msg.GetContainerMetric()
+	instanceIndex := strconv.Itoa(int(containerMetricEvent.GetInstanceIndex()))
 
-	stat := "apps." + appID + ".cpu." + instanceIndex
-	metric := metrics.NewGaugeMetric(stat, int64(e.GetCpuPercentage()))
+	var err error
+	var metric metrics.GaugeMetric
+	var newMetric string
+	var value int64
 
-	return *metric
-}
+	mv := metrics.Vars{}
+	mv.Parse(stream)
 
-func (p *ContainerMetricProcessor) ProcessContainerMetricMemory(e *events.ContainerMetric) metrics.GaugeMetric {
-	appID := e.GetApplicationId()
-	instanceIndex := strconv.Itoa(int(e.GetInstanceIndex()))
+	mv.Instance = instanceIndex
 
-	stat := "apps." + appID + ".memoryBytes." + instanceIndex
-	metric := metrics.NewGaugeMetric(stat, int64(e.GetMemoryBytes()))
+	switch metricType {
+	case "cpu":
+		mv.Metric = "cpu"
+		newMetric, err = mv.Compose(stream.Tmpl)
+		value = int64(containerMetricEvent.GetCpuPercentage())
+	case "mem":
+		mv.Metric = "memoryBytes"
+		newMetric, err = mv.Compose(stream.Tmpl)
+		value = int64(containerMetricEvent.GetMemoryBytes())
+	case "dsk":
+		mv.Metric = "diskBytes"
+		newMetric, err = mv.Compose(stream.Tmpl)
+		value = int64(containerMetricEvent.GetDiskBytes())
+	default:
+		err = errors.New("Unsupported metric type.")
+	}
 
-	return *metric
-}
+	if err != nil {
+		return metrics.GaugeMetric{}, err
+	}
 
-func (p *ContainerMetricProcessor) ProcessContainerMetricDisk(e *events.ContainerMetric) metrics.GaugeMetric {
-	appID := e.GetApplicationId()
-	instanceIndex := strconv.Itoa(int(e.GetInstanceIndex()))
+	metric = *metrics.NewGaugeMetric(newMetric, value)
 
-	stat := "apps." + appID + ".diskBytes." + instanceIndex
-	metric := metrics.NewGaugeMetric(stat, int64(e.GetDiskBytes()))
-
-	return *metric
+	return metric, nil
 }
