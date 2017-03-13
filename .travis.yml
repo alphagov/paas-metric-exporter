@@ -1,0 +1,16 @@
+language: go
+
+go:
+  - 1.7
+  - 1.8
+  - master
+
+install:
+  # Prevent default install task that does a `go get -t ./...`
+  - true
+
+before_install:
+  - go get github.com/onsi/ginkgo/ginkgo
+
+scripts:
+  - ginkgo -r
