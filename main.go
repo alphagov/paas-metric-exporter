@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
@@ -36,12 +37,6 @@ func main() {
 		Password:          *password,
 	}
 
-	client, err := cfclient.NewClient(c)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
 
 	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
@@ -63,13 +58,25 @@ func main() {
 		apps := make(map[string]*consumer.Consumer)
 
 		for {
-			err := updateApps(client, apps, msgChan, errorChan)
+			client, err := cfclient.NewClient(c)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
 			}
 
-			time.Sleep(time.Duration(*updateFrequency) * time.Second)
+			for {
+				err := updateApps(client, apps, msgChan, errorChan)
+				if err != nil {
+					if strings.Contains(err.Error(), `"error":"invalid_token"`) {
+						break
+					}
+
+					fmt.Println(err)
+					os.Exit(-1)
+				}
+
+				time.Sleep(time.Duration(*updateFrequency) * time.Second)
+			}
 		}
 	}()
 
