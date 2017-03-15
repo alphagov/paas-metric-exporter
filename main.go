@@ -53,31 +53,15 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
 		}
 	}()
-
 	go func() {
-		apps := make(map[string]*consumer.Consumer)
-
 		for {
-			client, err := cfclient.NewClient(c)
+			err := metricProcessor(c, msgChan, errorChan)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
 			}
-
-			for {
-				err := updateApps(client, apps, msgChan, errorChan)
-				if err != nil {
-					if strings.Contains(err.Error(), `"error":"invalid_token"`) {
-						break
-					}
-
-					fmt.Println(err)
-					os.Exit(-1)
-				}
-
-				time.Sleep(time.Duration(*updateFrequency) * time.Second)
-			}
 		}
+
 	}()
 
 	for wrapper := range msgChan {
@@ -148,4 +132,27 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 	}
 
 	return nil
+}
+
+func metricProcessor(c *cfclient.Config, msgChan chan *metrics.Stream, errorChan chan error) error {
+	apps := make(map[string]*consumer.Consumer)
+
+	for {
+		client, err := cfclient.NewClient(c)
+		if err != nil {
+			return err
+		}
+
+		for {
+			err := updateApps(client, apps, msgChan, errorChan)
+			if err != nil {
+				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
+					break
+				}
+				return err
+			}
+
+			time.Sleep(time.Duration(*updateFrequency) * time.Second)
+		}
+	}
 }
