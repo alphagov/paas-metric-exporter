@@ -1,58 +1,48 @@
 package main
 
-// Inspired by the noaa firehose sample script
-// https://github.com/cloudfoundry/noaa/blob/master/firehose_sample/main.go
-
 import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"time"
 
-	"github.com/cloudfoundry/noaa"
-	"github.com/cloudfoundry/noaa/events"
-	"github.com/pivotal-cf/graphite-nozzle/metrics"
-	"github.com/pivotal-cf/graphite-nozzle/processors"
-	"github.com/pivotal-cf/graphite-nozzle/token"
+	"github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-cf-apps-statsd/processors"
+	"github.com/cloudfoundry-community/go-cfclient"
+	"github.com/cloudfoundry/noaa/consumer"
 	"github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
-	dopplerEndpoint   = kingpin.Flag("doppler-endpoint", "Doppler endpoint").Default("wss://doppler.10.244.0.34.xip.io:443").OverrideDefaultFromEnvar("DOPPLER_ENDPOINT").String()
-	uaaEndpoint       = kingpin.Flag("uaa-endpoint", "UAA endpoint").Default("https://uaa.10.244.0.34.xip.io").OverrideDefaultFromEnvar("UAA_ENDPOINT").String()
-	subscriptionId    = kingpin.Flag("subscription-id", "Id for the subscription.").Default("firehose").OverrideDefaultFromEnvar("SUBSCRIPTION_ID").String()
+	apiEndpoint       = kingpin.Flag("api-endpoint", "API endpoint").Default("https://api.10.244.0.34.xip.io").OverrideDefaultFromEnvar("API_ENDPOINT").String()
 	statsdEndpoint    = kingpin.Flag("statsd-endpoint", "Statsd endpoint").Default("10.244.11.2:8125").OverrideDefaultFromEnvar("STATSD_ENDPOINT").String()
 	statsdPrefix      = kingpin.Flag("statsd-prefix", "Statsd prefix").Default("mycf.").OverrideDefaultFromEnvar("STATSD_PREFIX").String()
-	prefixJob         = kingpin.Flag("prefix-job", "Prefix metric names with job.index").Default("false").OverrideDefaultFromEnvar("PREFIX_JOB").Bool()
-	username          = kingpin.Flag("username", "Firehose username.").Default("admin").OverrideDefaultFromEnvar("FIREHOSE_USERNAME").String()
-	password          = kingpin.Flag("password", "Firehose password.").Default("admin").OverrideDefaultFromEnvar("FIREHOSE_PASSWORD").String()
+	username          = kingpin.Flag("username", "UAA username.").Default("").OverrideDefaultFromEnvar("USERNAME").String()
+	password          = kingpin.Flag("password", "UAA password.").Default("").OverrideDefaultFromEnvar("PASSWORD").String()
 	skipSSLValidation = kingpin.Flag("skip-ssl-validation", "Please don't").Default("false").OverrideDefaultFromEnvar("SKIP_SSL_VALIDATION").Bool()
 	debug             = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
+	updateFrequency   = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
+	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
 )
 
 func main() {
 	kingpin.Parse()
 
-	tokenFetcher := &token.UAATokenFetcher{
-		UaaUrl:                *uaaEndpoint,
-		Username:              *username,
-		Password:              *password,
-		InsecureSSLSkipVerify: *skipSSLValidation,
+	c := &cfclient.Config{
+		ApiAddress:        *apiEndpoint,
+		SkipSslValidation: *skipSSLValidation,
+		Username:          *username,
+		Password:          *password,
 	}
 
-	authToken, err := tokenFetcher.FetchAuthToken()
+	client, err := cfclient.NewClient(c)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
 
-	consumer := noaa.NewConsumer(*dopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
-
-	httpStartStopProcessor := processors.NewHttpStartStopProcessor()
-	valueMetricProcessor := processors.NewValueMetricProcessor()
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
-	heartbeatProcessor := processors.NewHeartbeatProcessor()
-	counterProcessor := processors.NewCounterProcessor()
 
 	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
 	sender.CreateSocket()
@@ -60,56 +50,95 @@ func main() {
 	var processedMetrics []metrics.Metric
 	var proc_err error
 
-	msgChan := make(chan *events.Envelope)
-	go func() {
-		defer close(msgChan)
-		errorChan := make(chan error)
-		go consumer.Firehose(*subscriptionId, authToken, msgChan, errorChan, nil)
+	msgChan := make(chan *metrics.Stream)
+	errorChan := make(chan error)
 
+	go func() {
 		for err := range errorChan {
 			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
 		}
 	}()
 
-	for msg := range msgChan {
-		eventType := msg.GetEventType()
+	go func() {
+		apps := make(map[string]*consumer.Consumer)
 
-		// graphite-nozzle can handle CounterEvent, ContainerMetric, Heartbeat,
-		// HttpStartStop and ValueMetric events
-		switch eventType {
-		case events.Envelope_ContainerMetric:
-			processedMetrics, proc_err = containerMetricProcessor.Process(msg)
-		case events.Envelope_CounterEvent:
-			processedMetrics, proc_err = counterProcessor.Process(msg)
-		case events.Envelope_Heartbeat:
-			processedMetrics, proc_err = heartbeatProcessor.Process(msg)
-		case events.Envelope_HttpStartStop:
-			processedMetrics, proc_err = httpStartStopProcessor.Process(msg)
-		case events.Envelope_ValueMetric:
-			processedMetrics, proc_err = valueMetricProcessor.Process(msg)
-		default:
-			// do nothing
+		for {
+			err := updateApps(client, apps, msgChan, errorChan)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(-1)
+			}
+
+			time.Sleep(time.Duration(*updateFrequency) * time.Second)
 		}
+	}()
+
+	for wrapper := range msgChan {
+		processedMetrics, proc_err = containerMetricProcessor.Process(wrapper)
 
 		if proc_err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", proc_err.Error())
 		} else {
-			if !*debug {
-				if len(processedMetrics) > 0 {
-					for _, metric := range processedMetrics {
-						var prefix string
-						if *prefixJob {
-							prefix = msg.GetJob() + "." + msg.GetIndex()
+			if len(processedMetrics) > 0 {
+				for _, metric := range processedMetrics {
+					if *debug {
+						fmt.Println(metric)
+					} else {
+						err := metric.Send(sender)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "%v\n", err)
 						}
-						metric.Send(sender, prefix)
 					}
-				}
-			} else {
-				for _, msg := range processedMetrics {
-					fmt.Println(msg)
 				}
 			}
 		}
 		processedMetrics = nil
 	}
+}
+
+func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consumer, msgChan chan *metrics.Stream, errorChan chan error) error {
+	authToken, err := client.GetToken()
+	if err != nil {
+		return err
+	}
+
+	apps, err := client.ListApps()
+	if err != nil {
+		return err
+	}
+
+	runningApps := map[string]bool{}
+	for _, app := range apps {
+		runningApps[app.Guid] = true
+		if _, ok := watchedApps[app.Guid]; !ok {
+			conn := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+			msg, err := conn.Stream(app.Guid, authToken)
+
+			go func(currentApp cfclient.App) {
+				for m := range msg {
+					stream := metrics.Stream{Msg: m, App: currentApp, Tmpl: *metricTemplate}
+
+					msgChan <- &stream
+				}
+			}(app)
+			go func() {
+				for e := range err {
+					if e != nil {
+						errorChan <- e
+					}
+				}
+			}()
+
+			watchedApps[app.Guid] = conn
+		}
+	}
+
+	for appGuid, _ := range watchedApps {
+		if _, ok := runningApps[appGuid]; !ok {
+			watchedApps[appGuid].Close()
+			delete(watchedApps, appGuid)
+		}
+	}
+
+	return nil
 }

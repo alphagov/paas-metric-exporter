@@ -1,80 +1,58 @@
-# graphite-nozzle
+# paas-cf-apps-statsd
 
-This library consumes events off the Cloud Foundry Firehose, processes them, and then sends them off to a StatsD endpoint. Note that it is still being developed and shouldn't be considered production-ready.
+This application consumes container metrics off the Cloud Foundry Doppler daemon, processes them based on provided metrics template, and then sends them off to a StatsD endpoint.
+CPU, RAM and disk usage metrics for app containers will be sent through to StatsD as a Gauge metric. It will get metrics for all applications provided user has access to. Note that it is still being developed and shouldn't be considered production-ready.
+
+The application is somewhat based on [`pivotal-cf/graphite-nozzle`](https://github.com/pivotal-cf/graphite-nozzle).
 
 ## Getting Started
 
-* A user who has access to the Cloud Foundry Firehose configured in
-your manifest
+* Clone this repository
+* Deploy the app to CloudFoundry. You can use application flags or envirnoment variables to configure it.
+  * Flags:
+    * `--api-endpoint` - CloudFoundry API endpoint
+    * `--statsd-endpoint` - Statsd endpoint
+    * `--username` - UAA username
+    * `--password` - UAA password
+    * `--skip-ssl-validation` - Do not validate SSL certificate
+    * `--debug` - Enable debug mode. This disables forwarding to statsd and prints to stdout
+    * `--update-frequency` - The time in seconds, that takes between each apps update call.
+    * `--metric-template` - The template that will form a new metric namespace. This uses [Go lang templating engine](https://golang.org/pkg/text/template/)
 
+  * Example manifest:
 ```
-properties:
-  uaa:
-    clients:
-      graphite-nozzle:
-        access-token-validity: 1209600
-        authorized-grant-types: authorization_code,client_credentials,refresh_token
-        override: true
-        secret: <password>
-        scope: openid,oauth.approvals,doppler.firehose
-        authorities: oauth.login,doppler.firehose
-
-```
-
-* A Graphite and StatsD server (see [here](https://github.com/CloudCredo/graphite-statsd-boshrelease) for a Graphite/StatsD BOSH release).
-* Golang installed and configured (see [here](https://golang.org/doc/install) for a tutorial on how to do this).
-* godep (see [here](https://github.com/tools/godep) for installation instructions).
-
-Once you've met all the prerequisites, you'll need to download the library and install the dependencies:
-
-```
-mkdir -p $GOPATH/src/github.com/pivotal-cf
-cd $GOPATH/src/github.com/pivotal-cf
-git clone git@github.com:pivotal-cf/graphite-nozzle.git
-cd graphite-nozzle
-godep restore
-godep go build
-```
-
-Finally, run the app:
-
-```
-./graphite-nozzle --help
+---
+applications:
+- name: metric-exporter
+  memory: 100M
+  instances: 1
+  buildpack: go_buildpack
+  health-check-type: none
+  no-route: true
+  env:
+    API_ENDPOINT: https://api.10.244.0.34.xip.io
+    STATSD_ENDPOINT: 10.244.11.2:8125
+    STATSD_PREFIX: myproject
+    USERNAME: cloud_foundry_user
+    PASSWORD: cloud_foundry_password
+    SKIP_SSL_VALIDATION: false
+    DEBUG: false
+    UPDATE_FREQUENCY: 300
+    METRIC_TEMPLATE: {{.Space}}.{{.App}}.{{.Metric}}
 ```
 
-## Metrics Overview
+## Supported template fields
 
-Following is a brief overview of the metrics that graphite-nozzle will extract from the Firehose and send off to Graphite.
+You can use following template fields in your metric template:
 
-### CounterEvent
-
-CounterEvents represent the increment of a counter. graphite-nozzle will send these through to StatsD as a Counter metric. These metrics appear in the Graphite Web UI under `Graphite.stats.counters.<statsdPrefix>.ops.<counterName>`.
-
-### ContainerMetric
-
-CPU, RAM and disk usage metrics for app containers will be sent through to StatsD as a Gauge metric. Note that ContainerMetric Events will not appear on the Firehose by default (at the moment) so you'll need to run a separate app to generate these. There is a sample ContainerMetric-generating app included in the noaa repository [here](https://github.com/cloudfoundry/noaa/tree/master/container_metrics_sample). These metrics appear in the Graphite Web UI under `Graphite.stats.gauges.<statsdPrefix>.apps.<appID>.<containerMetric>.<instanceIndex>`.
-
-### Heartbeat
-
-Heartbeat Events indicate liveness of the emitter and provide counts of the number of Events processed by the emitter. These metrics get sent through to StatsD as Gauge metrics. graphite-nozzle also increments a Counter metric for each component whenever a Heartbeat Event is received. These metrics appear in the Graphite Web UI under `Graphite.stats.gauges.<statsdPrefix>.ops.<Origin>.heartbeats.*`.
-
-### HTTPStartStop
-
-HTTP requests passing through the Cloud Foundry routers get recorded as HTTPStartStop Events. graphite-nozzle takes these events and extracts useful information, such as the response time and status code. These metrics are then sent through to StatsD. The following table gives an overview of the HTTP metrics graphite-nozzle handles:
-
-| Name | Description | StatsD Metric Type |
-| ---- | ----------- | ------------------ |
-| HttpStartStopResponseTime | HTTP response times in milliseconds | Timer |
-| HttpStartStopStatusCodeCount | A count of each HTTP status code | Counter |
-
-
-For all HTTPStartStop Events, the hostname is extracted from the URI and used in the Metric name. `.` characters are also replaced with `_` characters. This means that, for example, HTTP requests to `http://api.mycf.com/v2/info` will be recorded under `http://api_mycf_com` in the Graphite web UI. This is to avoid polluting the UI with hundreds of endpoints.
-
-Also note that 2 HTTPStartStop Events are generated per HTTP request to an application running in Cloud Foundry. graphite-nozzle will only increment the StatusCode counter for the HttpStartStop Events where `PeerType` == `PeerType_Client`. This is in order to accurately graph the incoming HTTP requests.
-
-### ValueMetric
-
-Any ValueMetric Event that appears on the Firehose will be sent through to StatsD as a Gauge metric. This includes metrics such as numCPUS, numGoRoutines, memoryStats, etc. These metrics appear in the Graphite web UI under `Graphite.stats.gauges.<statsdPrefix>.ops.<Origin>`.
+* `{{.App}}` - name of the application
+* `{{.CellId}}` - Cell GUID
+* `{{.GUID}}` - Application ID
+* `{{.Instance}}` - Application instance
+* `{{.Job}}` - BOSH kob name e.g `cell`
+* `{{.Metric}}` - cpu, memoryBytes or diskBytes
+* `{{.Organisation}}` - a CF organisation that the app belongs to
+* `{{.Space}}` - CF space used to deploy application 
 
 ## Testing
 

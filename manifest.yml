@@ -1,0 +1,8 @@
+---
+applications:
+- name: metric-exporter
+  memory: 100M
+  instances: 1
+  buildpack: go_buildpack
+  health-check-type: none
+  no-route: true

@@ -1,6 +1,8 @@
 package metrics
 
-import "time"
+import (
+	"time"
+)
 
 type StatsdClient interface {
 	Gauge(stat string, value int64) error
@@ -11,7 +13,7 @@ type StatsdClient interface {
 }
 
 type Metric interface {
-	Send(StatsdClient, string) error
+	Send(StatsdClient) error
 }
 
 type CounterMetric struct {
@@ -74,30 +76,22 @@ func NewPrecisionTimingMetric(stat string, value time.Duration) *PrecisionTiming
 	}
 }
 
-// prefixName applies a prefix to a metric name if the prefix is not empty.
-func prefixName(prefix, name string) string {
-	if prefix != "" {
-		name = prefix + "." + name
-	}
-	return name
+func (m CounterMetric) Send(statsdClient StatsdClient) error {
+	return statsdClient.Incr(m.Stat, m.Value)
 }
 
-func (m CounterMetric) Send(statsdClient StatsdClient, prefix string) error {
-	return statsdClient.Incr(prefixName(prefix, m.Stat), m.Value)
+func (m GaugeMetric) Send(statsdClient StatsdClient) error {
+	return statsdClient.Gauge(m.Stat, m.Value)
 }
 
-func (m GaugeMetric) Send(statsdClient StatsdClient, prefix string) error {
-	return statsdClient.Gauge(prefixName(prefix, m.Stat), m.Value)
+func (m FGaugeMetric) Send(statsdClient StatsdClient) error {
+	return statsdClient.FGauge(m.Stat, m.Value)
 }
 
-func (m FGaugeMetric) Send(statsdClient StatsdClient, prefix string) error {
-	return statsdClient.FGauge(prefixName(prefix, m.Stat), m.Value)
+func (m TimingMetric) Send(statsdClient StatsdClient) error {
+	return statsdClient.Timing(m.Stat, m.Value)
 }
 
-func (m TimingMetric) Send(statsdClient StatsdClient, prefix string) error {
-	return statsdClient.Timing(prefixName(prefix, m.Stat), m.Value)
-}
-
-func (m PrecisionTimingMetric) Send(statsdClient StatsdClient, prefix string) error {
-	return statsdClient.PrecisionTiming(prefixName(prefix, m.Stat), m.Value)
+func (m PrecisionTimingMetric) Send(statsdClient StatsdClient) error {
+	return statsdClient.PrecisionTiming(m.Stat, m.Value)
 }
