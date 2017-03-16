@@ -87,7 +87,7 @@ func main() {
 	}
 }
 
-func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consumer, msgChan chan *metrics.Stream, errorChan chan error) error {
+func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consumer, msgChan chan *metrics.Stream, errorChan chan error, newClient bool) error {
 	authToken, err := client.GetToken()
 	if err != nil {
 		return err
@@ -112,6 +112,7 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 					msgChan <- &stream
 				}
 			}(app)
+
 			go func() {
 				for e := range err {
 					if e != nil {
@@ -121,6 +122,8 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 			}()
 
 			watchedApps[app.Guid] = conn
+		} else if newClient {
+			watchedApps[app.Guid].Stream(app.Guid, authToken)
 		}
 	}
 
@@ -135,16 +138,19 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 }
 
 func metricProcessor(c *cfclient.Config, msgChan chan *metrics.Stream, errorChan chan error) error {
+	var newClient bool
 	apps := make(map[string]*consumer.Consumer)
 
 	for {
 		client, err := cfclient.NewClient(c)
+		newClient = true
 		if err != nil {
 			return err
 		}
 
 		for {
-			err := updateApps(client, apps, msgChan, errorChan)
+			err := updateApps(client, apps, msgChan, errorChan, newClient)
+			newClient = false
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
 					break

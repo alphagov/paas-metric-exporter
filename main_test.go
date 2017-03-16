@@ -106,7 +106,7 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should not start any watchers", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
 				Expect(watchers).To(BeEmpty())
 				Consistently(msgChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
@@ -131,7 +131,7 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should start three watchers and disconnect when requested", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
 
 				var event *metrics.Stream
 
@@ -186,12 +186,12 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should stop two old watchers and start two new watchers", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
 				for i := 0; i < len(appsBefore); i++ {
 					Eventually(msgChan).Should(Receive())
 				}
 
-				Expect(updateApps(client, watchers, msgChan, errChan)).To(Succeed())
+				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
 
 				stoppedApps := appsBefore[:2]
 				newApps := apps[1:]
