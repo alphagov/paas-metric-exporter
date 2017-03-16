@@ -55,7 +55,7 @@ func main() {
 	}()
 	go func() {
 		for {
-			err := metricProcessor(c, msgChan, errorChan)
+			err := metricProcessor(c, *updateFrequency, msgChan, errorChan)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -137,7 +137,7 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 	return nil
 }
 
-func metricProcessor(c *cfclient.Config, msgChan chan *metrics.Stream, errorChan chan error) error {
+func metricProcessor(c *cfclient.Config, updateFrequency int64, msgChan chan *metrics.Stream, errorChan chan error) error {
 	var newClient bool
 	apps := make(map[string]*consumer.Consumer)
 
@@ -158,7 +158,7 @@ func metricProcessor(c *cfclient.Config, msgChan chan *metrics.Stream, errorChan
 				return err
 			}
 
-			time.Sleep(time.Duration(*updateFrequency) * time.Second)
+			time.Sleep(time.Duration(updateFrequency) * time.Second)
 		}
 	}
 }

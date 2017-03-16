@@ -20,6 +20,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type TokenErr struct {
+	Type        string `json:"error"`
+	Description string `json:"error_description"`
+}
+
 var _ = Describe("Main", func() {
 	var (
 		client    *cfclient.Client
@@ -28,6 +33,9 @@ var _ = Describe("Main", func() {
 		tcHandler testWebsocketHandler
 		msgChan   chan *metrics.Stream
 		errChan   chan error
+		config    *cfclient.Config
+		endpoint  cfclient.Endpoint
+		token     oauth2.Token
 	)
 
 	BeforeEach(func() {
@@ -38,20 +46,20 @@ var _ = Describe("Main", func() {
 		Expect(err).ToNot(HaveOccurred())
 		tcURL.Scheme = "ws"
 
-		config := &cfclient.Config{
+		config = &cfclient.Config{
 			ApiAddress: apiServer.URL(),
 			Username:   "user",
 			Password:   "pass",
 		}
 
-		endpoint := cfclient.Endpoint{
+		endpoint = cfclient.Endpoint{
 			DopplerEndpoint: tcURL.String(),
 			LoggingEndpoint: tcURL.String(),
 			AuthEndpoint:    apiServer.URL(),
 			TokenEndpoint:   apiServer.URL(),
 		}
 
-		token := oauth2.Token{
+		token = oauth2.Token{
 			AccessToken:  "access",
 			TokenType:    "bearer",
 			RefreshToken: "refresh",
@@ -227,6 +235,84 @@ var _ = Describe("Main", func() {
 					Expect(watchers[app.Guid].Close()).To(Succeed())
 					Eventually(connected).Should(Equal(0))
 				}
+			})
+		})
+	})
+
+	Describe("metricProcessor", func() {
+		type tokenJSON struct {
+			AccessToken  string        `json:"access_token"`
+			TokenType    string        `json:"token_type"`
+			RefreshToken string        `json:"refresh_token"`
+			ExpiresIn    time.Duration `json:"expires_in"` // at least PayPal returns string, while most return number
+			Expires      time.Duration `json:"expires"`    // broken Facebook spelling of expires_in
+		}
+
+		var (
+			apps            []cfclient.App
+			teapot          string
+			calledEndpoints map[string]int
+			tkj             tokenJSON
+		)
+
+		Context("refreshToken has expired", func() {
+			BeforeEach(func() {
+				teapot = `{"status":"teapot"}`
+
+				tkj = tokenJSON{
+					AccessToken:  "access",
+					TokenType:    "bearer",
+					RefreshToken: "refresh",
+					ExpiresIn:    5,
+					Expires:      5,
+				}
+
+				calledEndpoints = map[string]int{}
+
+				apps = []cfclient.App{
+					{Guid: "55555555-5555-5555-5555-555555555555"},
+				}
+
+				tokenErr := TokenErr{
+					Type:        "invalid_token",
+					Description: "The token expired, was revoked, or the token ID is incorrect: xxxxx-r",
+				}
+
+				apiServer.RouteToHandler("GET", "/v2/apps",
+					ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+				)
+				apiServer.RouteToHandler("GET", "/v2/info",
+					ghttp.RespondWithJSONEncoded(http.StatusOK, endpoint),
+				)
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/oauth/token"),
+						ghttp.VerifyForm(url.Values{"grant_type": []string{"password"}}),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, tkj),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/oauth/token"),
+						ghttp.VerifyForm(url.Values{"grant_type": []string{"refresh_token"}}),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, tkj),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/oauth/token"),
+						ghttp.VerifyForm(url.Values{"grant_type": []string{"refresh_token"}}),
+						ghttp.RespondWithJSONEncoded(http.StatusUnauthorized, tokenErr),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/oauth/token"),
+						ghttp.VerifyForm(url.Values{"grant_type": []string{"password"}}),
+						ghttp.RespondWithJSONEncoded(http.StatusUnauthorized, tokenErr),
+					),
+				)
+			})
+
+			It("should try to refresh refreshToken", func() {
+				err := metricProcessor(config, 1, msgChan, errChan)
+				Eventually(err, 5*time.Second).Should(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})
 		})
 	})
