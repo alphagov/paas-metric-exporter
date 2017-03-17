@@ -27,15 +27,12 @@ type TokenErr struct {
 
 var _ = Describe("Main", func() {
 	var (
-		client    *cfclient.Client
-		apiServer *ghttp.Server
-		tcServer  *ghttp.Server
-		tcHandler testWebsocketHandler
-		msgChan   chan *metrics.Stream
-		errChan   chan error
-		config    *cfclient.Config
-		endpoint  cfclient.Endpoint
-		token     oauth2.Token
+		apiServer  *ghttp.Server
+		tcServer   *ghttp.Server
+		tcHandler  testWebsocketHandler
+		endpoint   cfclient.Endpoint
+		token      oauth2.Token
+		metricProc *metricProcessor
 	)
 
 	BeforeEach(func() {
@@ -45,12 +42,6 @@ var _ = Describe("Main", func() {
 		tcURL, err := url.Parse(tcServer.URL())
 		Expect(err).ToNot(HaveOccurred())
 		tcURL.Scheme = "ws"
-
-		config = &cfclient.Config{
-			ApiAddress: apiServer.URL(),
-			Username:   "user",
-			Password:   "pass",
-		}
 
 		endpoint = cfclient.Endpoint{
 			DopplerEndpoint: tcURL.String(),
@@ -82,27 +73,34 @@ var _ = Describe("Main", func() {
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		client, err = cfclient.NewClient(config)
-		Expect(err).ToNot(HaveOccurred())
+		metricProc = &metricProcessor{
+			cfClientConfig: &cfclient.Config{
+				ApiAddress: apiServer.URL(),
+				Username:   "user",
+				Password:   "pass",
+			},
 
-		msgChan = make(chan *metrics.Stream, 10)
-		errChan = make(chan error, 10)
+			msgChan:     make(chan *metrics.Stream, 10),
+			errorChan:   make(chan error, 10),
+			watchedApps: make(map[string]*consumer.Consumer),
+		}
+
+		metricProc.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(msgChan).To(BeEmpty())
-		close(msgChan)
-		Expect(errChan).To(BeEmpty())
-		close(errChan)
+		Expect(metricProc.msgChan).To(BeEmpty())
+		close(metricProc.msgChan)
+		Expect(metricProc.errorChan).To(BeEmpty())
+		close(metricProc.errorChan)
 	})
 
 	Describe("updateApps", func() {
-		var watchers map[string]*consumer.Consumer
 		var apps []cfclient.App
 
 		Context("no watchers and no running apps", func() {
 			BeforeEach(func() {
-				watchers = map[string]*consumer.Consumer{}
+				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{}
 
 				apiServer.AppendHandlers(
@@ -114,16 +112,16 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should not start any watchers", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
-				Expect(watchers).To(BeEmpty())
-				Consistently(msgChan).Should(BeEmpty())
+				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(metricProc.watchedApps).To(BeEmpty())
+				Consistently(metricProc.msgChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
 
 		Context("no watchers and three running apps", func() {
 			BeforeEach(func() {
-				watchers = map[string]*consumer.Consumer{}
+				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{
 					{Guid: "11111111-1111-1111-1111-111111111111"},
 					{Guid: "22222222-2222-2222-2222-222222222222"},
@@ -139,13 +137,13 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should start three watchers and disconnect when requested", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
+				Expect(metricProc.updateApps()).To(Succeed())
 
 				var event *metrics.Stream
 
 				appEvents := map[string]*events.Envelope{}
 				for i := 0; i < len(apps); i++ {
-					Eventually(msgChan).Should(Receive(&event))
+					Eventually(metricProc.msgChan).Should(Receive(&event))
 					appEvents[event.App.Guid] = event.Msg
 				}
 
@@ -156,10 +154,10 @@ var _ = Describe("Main", func() {
 					}
 
 					Expect(appEvents).To(HaveKey(app.Guid))
-					Expect(watchers).To(HaveKey(app.Guid))
+					Expect(metricProc.watchedApps).To(HaveKey(app.Guid))
 					Eventually(connected).Should(Equal(1))
 
-					Expect(watchers[app.Guid].Close()).To(Succeed())
+					Expect(metricProc.watchedApps[app.Guid].Close()).To(Succeed())
 					Eventually(connected).Should(Equal(0))
 				}
 			})
@@ -169,7 +167,7 @@ var _ = Describe("Main", func() {
 			var appsBefore []cfclient.App
 
 			BeforeEach(func() {
-				watchers = map[string]*consumer.Consumer{}
+				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				appsBefore = []cfclient.App{
 					{Guid: "11111111-1111-1111-1111-111111111111"},
 					{Guid: "22222222-2222-2222-2222-222222222222"},
@@ -194,12 +192,12 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should stop two old watchers and start two new watchers", func() {
-				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
+				Expect(metricProc.updateApps()).To(Succeed())
 				for i := 0; i < len(appsBefore); i++ {
-					Eventually(msgChan).Should(Receive())
+					Eventually(metricProc.msgChan).Should(Receive())
 				}
 
-				Expect(updateApps(client, watchers, msgChan, errChan, false)).To(Succeed())
+				Expect(metricProc.updateApps()).To(Succeed())
 
 				stoppedApps := appsBefore[:2]
 				newApps := apps[1:]
@@ -209,14 +207,14 @@ var _ = Describe("Main", func() {
 					connected = func() int {
 						return tcHandler.Connected(app.Guid)
 					}
-					Expect(watchers).ToNot(HaveKey(app.Guid))
+					Expect(metricProc.watchedApps).ToNot(HaveKey(app.Guid))
 					Eventually(connected).Should(Equal(0))
 				}
 
 				var event *metrics.Stream
 				appEvents := map[string]*events.Envelope{}
 				for i := 0; i < len(newApps); i++ {
-					Eventually(msgChan).Should(Receive(&event))
+					Eventually(metricProc.msgChan).Should(Receive(&event))
 					appEvents[*event.Msg.ContainerMetric.ApplicationId] = event.Msg
 				}
 
@@ -229,10 +227,10 @@ var _ = Describe("Main", func() {
 						return tcHandler.Connected(app.Guid)
 					}
 
-					Expect(watchers).To(HaveKey(app.Guid))
+					Expect(metricProc.watchedApps).To(HaveKey(app.Guid))
 					Eventually(connected).Should(Equal(1))
 
-					Expect(watchers[app.Guid].Close()).To(Succeed())
+					Expect(metricProc.watchedApps[app.Guid].Close()).To(Succeed())
 					Eventually(connected).Should(Equal(0))
 				}
 			})
@@ -310,7 +308,9 @@ var _ = Describe("Main", func() {
 			})
 
 			It("should try to refresh refreshToken", func() {
-				err := metricProcessor(config, 1, msgChan, errChan)
+				var updateFrequency int64 = 1
+
+				err := metricProc.process(updateFrequency)
 				Eventually(err, 5*time.Second).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})
@@ -429,12 +429,12 @@ func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	appGuid := match[1]
 
 	t.mutex.Lock()
-	t.connected[appGuid] += 1
+	t.connected[appGuid]++
 	t.mutex.Unlock()
 
 	defer func() {
 		t.mutex.Lock()
-		t.connected[appGuid] -= 1
+		t.connected[appGuid]--
 		defer t.mutex.Unlock()
 	}()
 

@@ -24,17 +24,46 @@ var (
 	skipSSLValidation = kingpin.Flag("skip-ssl-validation", "Please don't").Default("false").OverrideDefaultFromEnvar("SKIP_SSL_VALIDATION").Bool()
 	debug             = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
 	updateFrequency   = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
-	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
+	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{.Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
 )
+
+type metricProcessor struct {
+	cfClient       *cfclient.Client
+	cfClientConfig *cfclient.Config
+	msgChan        chan *metrics.Stream
+	errorChan      chan error
+	watchedApps    map[string]*consumer.Consumer
+}
+
+func (tr metricProcessor) RefreshAuthToken() (token string, authError error) {
+	token, err := tr.cfClient.GetToken()
+	if err != nil {
+		err := tr.authenticate()
+
+		if err != nil {
+			return "", err
+		}
+
+		return tr.cfClient.GetToken()
+	}
+
+	return token, nil
+}
 
 func main() {
 	kingpin.Parse()
 
-	c := &cfclient.Config{
-		ApiAddress:        *apiEndpoint,
-		SkipSslValidation: *skipSSLValidation,
-		Username:          *username,
-		Password:          *password,
+	metricProc := &metricProcessor{
+		cfClientConfig: &cfclient.Config{
+			ApiAddress:        *apiEndpoint,
+			SkipSslValidation: *skipSSLValidation,
+			Username:          *username,
+			Password:          *password,
+		},
+
+		msgChan:     make(chan *metrics.Stream),
+		errorChan:   make(chan error),
+		watchedApps: make(map[string]*consumer.Consumer),
 	}
 
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
@@ -45,26 +74,23 @@ func main() {
 	var processedMetrics []metrics.Metric
 	var proc_err error
 
-	msgChan := make(chan *metrics.Stream)
-	errorChan := make(chan error)
-
 	go func() {
-		for err := range errorChan {
+		for err := range metricProc.errorChan {
 			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
 		}
 	}()
+
 	go func() {
 		for {
-			err := metricProcessor(c, *updateFrequency, msgChan, errorChan)
+			err := metricProc.process(*updateFrequency)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
 			}
 		}
-
 	}()
 
-	for wrapper := range msgChan {
+	for wrapper := range metricProc.msgChan {
 		processedMetrics, proc_err = containerMetricProcessor.Process(wrapper)
 
 		if proc_err != nil {
@@ -87,13 +113,24 @@ func main() {
 	}
 }
 
-func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consumer, msgChan chan *metrics.Stream, errorChan chan error, newClient bool) error {
-	authToken, err := client.GetToken()
+func (m *metricProcessor) authenticate() (err error) {
+	client, err := cfclient.NewClient(m.cfClientConfig)
 	if err != nil {
 		return err
 	}
 
-	apps, err := client.ListApps()
+	m.cfClient = client
+	return nil
+}
+
+func (m *metricProcessor) updateApps() error {
+
+	authToken, err := m.cfClient.GetToken()
+	if err != nil {
+		return err
+	}
+
+	apps, err := m.cfClient.ListApps()
 	if err != nil {
 		return err
 	}
@@ -101,56 +138,52 @@ func updateApps(client *cfclient.Client, watchedApps map[string]*consumer.Consum
 	runningApps := map[string]bool{}
 	for _, app := range apps {
 		runningApps[app.Guid] = true
-		if _, ok := watchedApps[app.Guid]; !ok {
-			conn := consumer.New(client.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+		if _, ok := m.watchedApps[app.Guid]; !ok {
+			conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 			msg, err := conn.Stream(app.Guid, authToken)
 
 			go func(currentApp cfclient.App) {
-				for m := range msg {
-					stream := metrics.Stream{Msg: m, App: currentApp, Tmpl: *metricTemplate}
+				for message := range msg {
+					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
 
-					msgChan <- &stream
+					m.msgChan <- &stream
 				}
 			}(app)
 
 			go func() {
 				for e := range err {
 					if e != nil {
-						errorChan <- e
+						m.errorChan <- e
 					}
 				}
 			}()
 
-			watchedApps[app.Guid] = conn
-		} else if newClient {
-			watchedApps[app.Guid].Stream(app.Guid, authToken)
+			conn.RefreshTokenFrom(m)
+
+			m.watchedApps[app.Guid] = conn
 		}
 	}
 
-	for appGuid, _ := range watchedApps {
+	for appGuid, _ := range m.watchedApps {
 		if _, ok := runningApps[appGuid]; !ok {
-			watchedApps[appGuid].Close()
-			delete(watchedApps, appGuid)
+			m.watchedApps[appGuid].Close()
+			delete(m.watchedApps, appGuid)
 		}
 	}
 
 	return nil
 }
 
-func metricProcessor(c *cfclient.Config, updateFrequency int64, msgChan chan *metrics.Stream, errorChan chan error) error {
-	var newClient bool
-	apps := make(map[string]*consumer.Consumer)
+func (m *metricProcessor) process(updateFrequency int64) error {
 
 	for {
-		client, err := cfclient.NewClient(c)
-		newClient = true
+		err := m.authenticate()
 		if err != nil {
 			return err
 		}
 
 		for {
-			err := updateApps(client, apps, msgChan, errorChan, newClient)
-			newClient = false
+			err := m.updateApps()
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
 					break
