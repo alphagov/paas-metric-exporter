@@ -41,6 +41,10 @@ applications:
     METRIC_TEMPLATE: {{.Space}}.{{.App}}.{{.Metric}}
 ```
 
+Be sure to provide credentials for the user assigned to the correct space(s), with ability to list applications.
+We'd recommend using the `SpaceAuditor` role, which would fulfill the requirements of this app, and also
+secure the environment to a certain level.
+
 ## Supported template fields
 
 You can use following template fields in your metric template:
