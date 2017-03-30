@@ -168,8 +168,9 @@ func (m *metricProcessor) updateApps() error {
 			go func(currentApp cfclient.App) {
 				for message := range msg {
 					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-
-					m.msgChan <- &stream
+					if (*message.EventType == events.Envelope_ContainerMetric) {
+						m.msgChan <- &stream
+					}
 				}
 			}(app)
 
