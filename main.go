@@ -12,6 +12,7 @@ import (
 	"github.com/alphagov/paas-cf-apps-statsd/processors"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
+	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -147,8 +148,9 @@ func (m *metricProcessor) updateApps() error {
 			go func(currentApp cfclient.App) {
 				for message := range msg {
 					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-
-					m.msgChan <- &stream
+					if (*message.EventType == events.Envelope_ContainerMetric) {
+						m.msgChan <- &stream
+					}
 				}
 			}(app)
 
