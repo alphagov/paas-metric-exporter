@@ -35,16 +35,16 @@ type metricProcessor struct {
 	watchedApps    map[string]*consumer.Consumer
 }
 
-func (tr metricProcessor) RefreshAuthToken() (token string, authError error) {
-	token, err := tr.cfClient.GetToken()
+func (m metricProcessor) RefreshAuthToken() (token string, authError error) {
+	token, err := m.cfClient.GetToken()
 	if err != nil {
-		err := tr.authenticate()
+		err := m.authenticate()
 
 		if err != nil {
 			return "", err
 		}
 
-		return tr.cfClient.GetToken()
+		return m.cfClient.GetToken()
 	}
 
 	return token, nil
@@ -72,7 +72,7 @@ func main() {
 	sender.CreateSocket()
 
 	var processedMetrics []metrics.Metric
-	var proc_err error
+	var procErr error
 
 	go func() {
 		for err := range metricProc.errorChan {
@@ -91,10 +91,10 @@ func main() {
 	}()
 
 	for wrapper := range metricProc.msgChan {
-		processedMetrics, proc_err = containerMetricProcessor.Process(wrapper)
+		processedMetrics, procErr = containerMetricProcessor.Process(wrapper)
 
-		if proc_err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", proc_err.Error())
+		if procErr != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", procErr.Error())
 		} else {
 			if len(processedMetrics) > 0 {
 				for _, metric := range processedMetrics {
@@ -145,7 +145,6 @@ func (m *metricProcessor) updateApps() error {
 			go func(currentApp cfclient.App) {
 				for message := range msg {
 					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-
 					m.msgChan <- &stream
 				}
 			}(app)
@@ -164,10 +163,10 @@ func (m *metricProcessor) updateApps() error {
 		}
 	}
 
-	for appGuid, _ := range m.watchedApps {
-		if _, ok := runningApps[appGuid]; !ok {
-			m.watchedApps[appGuid].Close()
-			delete(m.watchedApps, appGuid)
+	for appGUID := range m.watchedApps {
+		if _, ok := runningApps[appGUID]; !ok {
+			m.watchedApps[appGUID].Close()
+			delete(m.watchedApps, appGUID)
 		}
 	}
 
@@ -175,7 +174,6 @@ func (m *metricProcessor) updateApps() error {
 }
 
 func (m *metricProcessor) process(updateFrequency int64) error {
-
 	for {
 		err := m.authenticate()
 		if err != nil {
