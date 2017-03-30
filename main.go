@@ -26,6 +26,8 @@ var (
 	debug             = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
 	updateFrequency   = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
 	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{.Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
+	filterOrg = kingpin.Flag("org", "Organisation name").Default("").OverrideDefaultFromEnvar("ORG").String()
+	filterSpace = kingpin.Flag("space", "Space name").Default("").OverrideDefaultFromEnvar("SPACE").String()
 )
 
 type metricProcessor struct {
@@ -34,6 +36,7 @@ type metricProcessor struct {
 	msgChan        chan *metrics.Stream
 	errorChan      chan error
 	watchedApps    map[string]*consumer.Consumer
+	skippedApps    map[string]bool
 }
 
 func (m metricProcessor) RefreshAuthToken() (token string, authError error) {
@@ -65,6 +68,7 @@ func main() {
 		msgChan:     make(chan *metrics.Stream),
 		errorChan:   make(chan error),
 		watchedApps: make(map[string]*consumer.Consumer),
+		skippedApps: make(map[string]bool),
 	}
 
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
@@ -83,7 +87,7 @@ func main() {
 
 	go func() {
 		for {
-			err := metricProc.process(*updateFrequency)
+			err := metricProc.process(*updateFrequency, *filterOrg, *filterSpace)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -124,7 +128,7 @@ func (m *metricProcessor) authenticate() (err error) {
 	return nil
 }
 
-func (m *metricProcessor) updateApps() error {
+func (m *metricProcessor) updateApps(filterOrg string, filterSpace string) error {
 
 	authToken, err := m.cfClient.GetToken()
 	if err != nil {
@@ -139,7 +143,28 @@ func (m *metricProcessor) updateApps() error {
 	runningApps := map[string]bool{}
 	for _, app := range apps {
 		runningApps[app.Guid] = true
+
+		if _, ok := m.skippedApps[app.Guid]; ok {
+			continue;
+		}
+
 		if _, ok := m.watchedApps[app.Guid]; !ok {
+			space, spaceErr := app.Space()
+			if spaceErr != nil {
+				fmt.Printf("Failed to get the space: %s\n", spaceErr)
+				continue
+			}
+
+			org, orgErr := space.Org()
+			if orgErr != nil {
+				fmt.Printf("Failed to get the org: %s\n", orgErr)
+				continue
+			}
+
+			if ((filterOrg != "" && org.Name != filterOrg) || (filterSpace != "" && space.Name != filterSpace)) {
+				m.skippedApps[app.Guid] = true
+				continue;
+			}
 			conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 			msg, err := conn.Stream(app.Guid, authToken)
 
@@ -176,7 +201,7 @@ func (m *metricProcessor) updateApps() error {
 	return nil
 }
 
-func (m *metricProcessor) process(updateFrequency int64) error {
+func (m *metricProcessor) process(updateFrequency int64, filterOrg string, filterSpace string) error {
 	for {
 		err := m.authenticate()
 		if err != nil {
@@ -184,7 +209,7 @@ func (m *metricProcessor) process(updateFrequency int64) error {
 		}
 
 		for {
-			err := m.updateApps()
+			err := m.updateApps(filterOrg, filterSpace)
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
 					break
