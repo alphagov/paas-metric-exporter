@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"net/url"
 	"fmt"
 	"os"
 	"strings"
@@ -130,7 +131,8 @@ func (m *metricProcessor) updateApps() error {
 		return err
 	}
 
-	apps, err := m.cfClient.ListApps()
+	q := url.Values{}
+	apps, err := m.cfClient.ListAppsByQuery(q)
 	if err != nil {
 		return err
 	}
