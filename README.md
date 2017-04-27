@@ -18,6 +18,8 @@ The application is somewhat based on [`pivotal-cf/graphite-nozzle`](https://gith
     * `--debug` - Enable debug mode. This disables forwarding to statsd and prints to stdout
     * `--update-frequency` - The time in seconds, that takes between each apps update call.
     * `--metric-template` - The template that will form a new metric namespace. This uses [Go lang templating engine](https://golang.org/pkg/text/template/)
+    * `--org` - If set only collect metrics from this organisation
+    * `--space` - If set only collect metrics from this space
 
   * Example manifest:
 ```
@@ -39,6 +41,8 @@ applications:
     DEBUG: false
     UPDATE_FREQUENCY: 300
     METRIC_TEMPLATE: {{.Space}}.{{.App}}.{{.Metric}}
+    ORG: org-name
+    SPACE: preview
 ```
 
 Be sure to provide credentials for the user assigned to the correct space(s), with ability to list applications.
@@ -56,7 +60,7 @@ You can use following template fields in your metric template:
 * `{{.Job}}` - BOSH kob name e.g `cell`
 * `{{.Metric}}` - cpu, memoryBytes or diskBytes
 * `{{.Organisation}}` - a CF organisation that the app belongs to
-* `{{.Space}}` - CF space used to deploy application 
+* `{{.Space}}` - CF space used to deploy application
 
 ## Testing
 
