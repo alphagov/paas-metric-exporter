@@ -46,15 +46,12 @@ func (mv *Vars) Compose(providedTemplate string) (string, error) {
 }
 
 func (mv *Vars) Parse(stream *Stream) {
-	space, _ := stream.App.Space()
-	org, _ := space.Org()
-
 	mv.App = stream.App.Name
 	mv.GUID = stream.App.Guid
 	mv.CellId = stream.Msg.GetIndex()
 	mv.Instance = ""
 	mv.Job = stream.Msg.GetJob()
 	mv.Metric = ""
-	mv.Organisation = org.Name
-	mv.Space = space.Name
+	mv.Organisation = stream.App.SpaceData.Entity.OrgData.Entity.Name
+	mv.Space = stream.App.SpaceData.Entity.Name
 }

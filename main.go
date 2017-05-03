@@ -125,6 +125,15 @@ func (m *metricProcessor) authenticate() (err error) {
 	return nil
 }
 
+func  updateAppSpaceData(app *cfclient.App) {
+	if (cfclient.SpaceResource{}) == app.SpaceData {
+		space, _ := app.Space()
+		org, _ := space.Org()
+		space.OrgData.Entity = org
+		app.SpaceData.Entity = space
+	}
+}
+
 func (m *metricProcessor) updateApps() error {
 
 	authToken, err := m.cfClient.GetToken()
@@ -142,6 +151,7 @@ func (m *metricProcessor) updateApps() error {
 	for _, app := range apps {
 		runningApps[app.Guid] = true
 		if _, ok := m.watchedApps[app.Guid]; !ok {
+			updateAppSpaceData(&app)
 			conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 			msg, err := conn.Stream(app.Guid, authToken)
 
