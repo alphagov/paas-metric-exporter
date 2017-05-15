@@ -2,8 +2,8 @@ package main
 
 import (
 	"crypto/tls"
-	"net/url"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -125,7 +125,7 @@ func (m *metricProcessor) authenticate() (err error) {
 	return nil
 }
 
-func  updateAppSpaceData(app *cfclient.App) {
+func updateAppSpaceData(app *cfclient.App) {
 	if (cfclient.SpaceResource{}) == app.SpaceData {
 		space, _ := app.Space()
 		org, _ := space.Org()
@@ -158,7 +158,7 @@ func (m *metricProcessor) updateApps() error {
 			go func(currentApp cfclient.App) {
 				for message := range msg {
 					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-					if (*message.EventType == events.Envelope_ContainerMetric) {
+					if *message.EventType == events.Envelope_ContainerMetric {
 						m.msgChan <- &stream
 					}
 				}
