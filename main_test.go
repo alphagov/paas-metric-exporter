@@ -98,6 +98,11 @@ var _ = Describe("Main", func() {
 	Describe("updateApps", func() {
 		var apps []cfclient.App
 
+		const (
+			spaceGuid = "25F4B52E-E16C-4E1F-A529-E45C2DB9AC07"
+			orgGuid   = "98C535C1-A4F8-4066-8384-733E1ADCADEE"
+		)
+
 		Context("no watchers and no running apps", func() {
 			BeforeEach(func() {
 				metricProc.watchedApps = map[string]*consumer.Consumer{}
@@ -123,9 +128,9 @@ var _ = Describe("Main", func() {
 			BeforeEach(func() {
 				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{
-					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/guid"},
+					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 
 				apiServer.AppendHandlers(
@@ -134,28 +139,28 @@ var _ = Describe("Main", func() {
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(apps[0])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(apps[0])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(apps[1])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(apps[1])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(apps[2])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(apps[2])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 				)
 			})
@@ -193,14 +198,14 @@ var _ = Describe("Main", func() {
 			BeforeEach(func() {
 				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				appsBefore = []cfclient.App{
-					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/guid"},
+					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 				apps = []cfclient.App{
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "44444444-4444-4444-4444-444444444444", SpaceURL: "/v2/spaces/guid"},
-					{Guid: "55555555-5555-5555-5555-555555555555", SpaceURL: "/v2/spaces/guid"},
+					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "44444444-4444-4444-4444-444444444444", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "55555555-5555-5555-5555-555555555555", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 
 				apiServer.AppendHandlers(
@@ -209,48 +214,48 @@ var _ = Describe("Main", func() {
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBefore)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(appsBefore[0])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(appsBefore[0])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(appsBefore[1])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(appsBefore[1])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(appsBefore[2])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(appsBefore[2])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(apps[1])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(apps[1])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/spaces/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(apps[2])),
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/v2/organizations/guid"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(apps[2])),
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
 				)
 			})
@@ -456,16 +461,16 @@ func testAppResponse(apps []cfclient.App) cfclient.AppResponse {
 	return resp
 }
 
-func testSpaceResource(app cfclient.App) cfclient.SpaceResource {
+func testSpaceResource(spaceGuid, orgGuid string) cfclient.SpaceResource {
 	return cfclient.SpaceResource{
-		Meta:   cfclient.Meta{Guid: "11111111-1111-1111-1111-111111111111"},
-		Entity: cfclient.Space{OrgURL: "/v2/organizations/guid"},
+		Meta:   cfclient.Meta{Guid: spaceGuid},
+		Entity: cfclient.Space{OrgURL: "/v2/organizations/" + orgGuid},
 	}
 }
 
-func testOrgResource(app cfclient.App) cfclient.OrgResource {
+func testOrgResource(orgGuid string) cfclient.OrgResource {
 	return cfclient.OrgResource{
-		Meta:   cfclient.Meta{Guid: "11111111-1111-1111-1111-111111111111"},
+		Meta:   cfclient.Meta{Guid: orgGuid},
 		Entity: cfclient.Org{},
 	}
 }
