@@ -2,8 +2,8 @@ package main
 
 import (
 	"crypto/tls"
-	"net/url"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +12,7 @@ import (
 	"github.com/alphagov/paas-cf-apps-statsd/processors"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
+	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -124,6 +125,22 @@ func (m *metricProcessor) authenticate() (err error) {
 	return nil
 }
 
+func updateAppSpaceData(app *cfclient.App) error {
+	if app.SpaceData == (cfclient.SpaceResource{}) {
+		space, err := app.Space()
+		if err != nil {
+			return err
+		}
+		org, err := space.Org()
+		if err != nil {
+			return err
+		}
+		space.OrgData.Entity = org
+		app.SpaceData.Entity = space
+	}
+	return nil
+}
+
 func (m *metricProcessor) updateApps() error {
 
 	authToken, err := m.cfClient.GetToken()
@@ -141,14 +158,19 @@ func (m *metricProcessor) updateApps() error {
 	for _, app := range apps {
 		runningApps[app.Guid] = true
 		if _, ok := m.watchedApps[app.Guid]; !ok {
+			err = updateAppSpaceData(&app)
+			if err != nil {
+				return err
+			}
 			conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
 			msg, err := conn.Stream(app.Guid, authToken)
 
 			go func(currentApp cfclient.App) {
 				for message := range msg {
 					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-
-					m.msgChan <- &stream
+					if (*message.EventType == events.Envelope_ContainerMetric) {
+						m.msgChan <- &stream
+					}
 				}
 			}(app)
 
