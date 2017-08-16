@@ -38,7 +38,7 @@ applications:
     SKIP_SSL_VALIDATION: false
     DEBUG: false
     UPDATE_FREQUENCY: 300
-    METRIC_TEMPLATE: {{.Space}}.{{.App}}.{{.Metric}}
+    METRIC_TEMPLATE: "{{.Space}}.{{.App}}.{{.Metric}}"
 ```
 
 Be sure to provide credentials for the user assigned to the correct space(s), with ability to list applications.
