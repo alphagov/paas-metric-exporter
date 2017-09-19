@@ -1,7 +1,7 @@
 # paas-cf-apps-statsd
 
 This application consumes container metrics off the Cloud Foundry Doppler daemon, processes them based on provided metrics template, and then sends them off to a StatsD endpoint.
-CPU, RAM and disk usage metrics for app containers will be sent through to StatsD as a Gauge metric. It will get metrics for all applications provided user has access to. Note that it is still being developed and shouldn't be considered production-ready.
+CPU, RAM and disk usage metrics for app containers will be sent through to StatsD as a Gauge metric. It will get metrics for all applications provided user has access to.
 
 The application is somewhat based on [`pivotal-cf/graphite-nozzle`](https://github.com/pivotal-cf/graphite-nozzle).
 
