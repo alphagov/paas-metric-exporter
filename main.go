@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
@@ -34,19 +35,20 @@ type metricProcessor struct {
 	cfClientConfig *cfclient.Config
 	msgChan        chan *metrics.Stream
 	errorChan      chan error
-	watchedApps    map[string]*consumer.Consumer
+	watchedApps    map[string]chan cfclient.App
+	sync.RWMutex
 }
 
-func (tr metricProcessor) RefreshAuthToken() (token string, authError error) {
-	token, err := tr.cfClient.GetToken()
+func (m *metricProcessor) RefreshAuthToken() (token string, authError error) {
+	token, err := m.cfClient.GetToken()
 	if err != nil {
-		err := tr.authenticate()
+		err := m.authenticate()
 
 		if err != nil {
 			return "", err
 		}
 
-		return tr.cfClient.GetToken()
+		return m.cfClient.GetToken()
 	}
 
 	return token, nil
@@ -65,7 +67,7 @@ func main() {
 
 		msgChan:     make(chan *metrics.Stream),
 		errorChan:   make(chan error),
-		watchedApps: make(map[string]*consumer.Consumer),
+		watchedApps: make(map[string]chan cfclient.App),
 	}
 
 	containerMetricProcessor := processors.NewContainerMetricProcessor()
@@ -141,57 +143,100 @@ func updateAppSpaceData(app *cfclient.App) error {
 	return nil
 }
 
-func (m *metricProcessor) updateApps() error {
+func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
+	appChan := make(chan cfclient.App)
+	go func() {
+		conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+		conn.RefreshTokenFrom(m)
+		defer func() {
+			m.Lock()
+			defer m.Unlock()
+			delete(m.watchedApps, app.Guid)
+		}()
 
-	authToken, err := m.cfClient.GetToken()
-	if err != nil {
-		return err
-	}
+		authToken, err := m.cfClient.GetToken()
+		if err != nil {
+			m.errorChan <- err
+			return
+		}
+		msgs, errs := conn.Stream(app.Guid, authToken)
+		for {
+			select {
+			case message, ok := <-msgs:
+				if !ok {
+					return
+				}
+				stream := metrics.Stream{Msg: message, App: app, Tmpl: *metricTemplate}
+				if *message.EventType == events.Envelope_ContainerMetric {
+					m.msgChan <- &stream
+				}
+			case err, ok := <-errs:
+				if !ok {
+					errs = nil
+					continue
+				}
+				if err == nil {
+					continue
+				}
+				m.errorChan <- err
+			case updatedApp, ok := <-appChan:
+				if !ok {
+					appChan = nil
+					conn.Close()
+					continue
+				}
+				app = updatedApp
+			}
+		}
+	}()
+	return appChan
+}
 
+func (m *metricProcessor) getApps() ([]cfclient.App, error) {
 	q := url.Values{}
 	apps, err := m.cfClient.ListAppsByQuery(q)
 	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
+		if err = updateAppSpaceData(&app); err != nil {
+			return nil, err
+		}
+	}
+	return apps, nil
+}
+
+func (m *metricProcessor) isWatched(guid string) bool {
+	m.RLock()
+	defer m.RUnlock()
+	_, exists := m.watchedApps[guid]
+	return exists
+}
+
+func (m *metricProcessor) updateApps() error {
+
+	m.Lock()
+	defer m.Unlock()
+
+	apps, err := m.getApps()
+	if err != nil {
 		return err
 	}
 
-	runningApps := map[string]bool{}
+	running := map[string]bool{}
 	for _, app := range apps {
-		runningApps[app.Guid] = true
-		if _, ok := m.watchedApps[app.Guid]; !ok {
-			err = updateAppSpaceData(&app)
-			if err != nil {
-				return err
-			}
-			conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
-			msg, err := conn.Stream(app.Guid, authToken)
-
-			go func(currentApp cfclient.App) {
-				for message := range msg {
-					stream := metrics.Stream{Msg: message, App: currentApp, Tmpl: *metricTemplate}
-					if (*message.EventType == events.Envelope_ContainerMetric) {
-						m.msgChan <- &stream
-					}
-				}
-			}(app)
-
-			go func() {
-				for e := range err {
-					if e != nil {
-						m.errorChan <- e
-					}
-				}
-			}()
-
-			conn.RefreshTokenFrom(m)
-
-			m.watchedApps[app.Guid] = conn
+		running[app.Guid] = true
+		if appChan, ok := m.watchedApps[app.Guid]; ok {
+			appChan <- app
+		} else {
+			appChan = m.startStream(app)
+			m.watchedApps[app.Guid] = appChan
 		}
 	}
 
-	for appGuid, _ := range m.watchedApps {
-		if _, ok := runningApps[appGuid]; !ok {
-			m.watchedApps[appGuid].Close()
-			delete(m.watchedApps, appGuid)
+	for appGuid, appChan := range m.watchedApps {
+		if ok := running[appGuid]; !ok {
+			close(appChan)
 		}
 	}
 

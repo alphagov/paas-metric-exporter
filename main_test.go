@@ -12,7 +12,6 @@ import (
 
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/cloudfoundry-community/go-cfclient"
-	"github.com/cloudfoundry/noaa/consumer"
 	"github.com/cloudfoundry/sonde-go/events"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -68,8 +67,7 @@ var _ = Describe("Main", func() {
 		)
 
 		tcHandler = testWebsocketHandler{
-			connected: map[string]int{},
-			mutex:     &sync.RWMutex{},
+			conns: map[string]*websocket.Conn{},
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
@@ -82,7 +80,7 @@ var _ = Describe("Main", func() {
 
 			msgChan:     make(chan *metrics.Stream, 10),
 			errorChan:   make(chan error, 10),
-			watchedApps: make(map[string]*consumer.Consumer),
+			watchedApps: make(map[string]chan cfclient.App),
 		}
 
 		metricProc.authenticate()
@@ -103,9 +101,66 @@ var _ = Describe("Main", func() {
 			orgGuid   = "98C535C1-A4F8-4066-8384-733E1ADCADEE"
 		)
 
+		Context("app is renamed", func() {
+			var appsBeforeRename []cfclient.App
+			var appsAfterRename []cfclient.App
+			BeforeEach(func() {
+				appsBeforeRename = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+				appsAfterRename = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Name: "bar", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBeforeRename)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsAfterRename)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+					),
+				)
+			})
+
+			It("update the metrics name", func() {
+				Expect(metricProc.updateApps()).To(Succeed())
+
+				var eventBeforeRename *metrics.Stream
+				Eventually(metricProc.msgChan).Should(Receive(&eventBeforeRename))
+				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
+
+				retrieveNewName := func() string {
+					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
+					var eventAfterRename *metrics.Stream
+					Eventually(metricProc.msgChan).Should(Receive(&eventAfterRename))
+					return eventAfterRename.App.Name
+				}
+
+				Expect(metricProc.updateApps()).To(Succeed())
+				Eventually(retrieveNewName).Should(Equal("bar"))
+			})
+		})
+
 		Context("no watchers and no running apps", func() {
 			BeforeEach(func() {
-				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{}
 
 				apiServer.AppendHandlers(
@@ -118,7 +173,6 @@ var _ = Describe("Main", func() {
 
 			It("should not start any watchers", func() {
 				Expect(metricProc.updateApps()).To(Succeed())
-				Expect(metricProc.watchedApps).To(BeEmpty())
 				Consistently(metricProc.msgChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
@@ -126,12 +180,13 @@ var _ = Describe("Main", func() {
 
 		Context("no watchers and three running apps", func() {
 			BeforeEach(func() {
-				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				apps = []cfclient.App{
 					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
 					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
 					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
+
+				afterApps := []cfclient.App{}
 
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
@@ -162,32 +217,34 @@ var _ = Describe("Main", func() {
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(afterApps)),
+					),
 				)
 			})
 
 			It("should start three watchers and disconnect when requested", func() {
+
 				Expect(metricProc.updateApps()).To(Succeed())
 
-				var event *metrics.Stream
-
-				appEvents := map[string]*events.Envelope{}
-				for i := 0; i < len(apps); i++ {
-					Eventually(metricProc.msgChan).Should(Receive(&event))
-					appEvents[event.App.Guid] = event.Msg
+				for _, app := range apps {
+					guid := app.Guid
+					inMap := func() bool {
+						return metricProc.isWatched(guid)
+					}
+					Eventually(inMap).Should(BeTrue())
+					Eventually(metricProc.msgChan).Should(Receive())
 				}
 
-				var connected func() int
+				Expect(metricProc.updateApps()).To(Succeed())
+
 				for _, app := range apps {
-					connected = func() int {
-						return tcHandler.Connected(app.Guid)
+					guid := app.Guid
+					inMap := func() bool {
+						return metricProc.isWatched(guid)
 					}
-
-					Expect(appEvents).To(HaveKey(app.Guid))
-					Expect(metricProc.watchedApps).To(HaveKey(app.Guid))
-					Eventually(connected).Should(Equal(1))
-
-					Expect(metricProc.watchedApps[app.Guid].Close()).To(Succeed())
-					Eventually(connected).Should(Equal(0))
+					Eventually(inMap).Should(BeFalse())
 				}
 			})
 		})
@@ -196,7 +253,6 @@ var _ = Describe("Main", func() {
 			var appsBefore []cfclient.App
 
 			BeforeEach(func() {
-				metricProc.watchedApps = map[string]*consumer.Consumer{}
 				appsBefore = []cfclient.App{
 					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
 					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
@@ -257,50 +313,42 @@ var _ = Describe("Main", func() {
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
 						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
 					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+					),
 				)
 			})
 
 			It("should stop two old watchers and start two new watchers", func() {
 				Expect(metricProc.updateApps()).To(Succeed())
-				for i := 0; i < len(appsBefore); i++ {
+				for range appsBefore {
 					Eventually(metricProc.msgChan).Should(Receive())
 				}
 
 				Expect(metricProc.updateApps()).To(Succeed())
 
 				stoppedApps := appsBefore[:2]
-				newApps := apps[1:]
-				var connected func() int
-
 				for _, app := range stoppedApps {
-					connected = func() int {
-						return tcHandler.Connected(app.Guid)
+					guid := app.Guid
+					inMap := func() bool {
+						return metricProc.isWatched(guid)
 					}
-					Expect(metricProc.watchedApps).ToNot(HaveKey(app.Guid))
-					Eventually(connected).Should(Equal(0))
+					Eventually(inMap).Should(BeFalse())
 				}
 
-				var event *metrics.Stream
-				appEvents := map[string]*events.Envelope{}
-				for i := 0; i < len(newApps); i++ {
-					Eventually(metricProc.msgChan).Should(Receive(&event))
-					appEvents[*event.Msg.ContainerMetric.ApplicationId] = event.Msg
-				}
-
+				newApps := apps[1:]
 				for _, app := range newApps {
-					Expect(appEvents).To(HaveKey(app.Guid))
-				}
-
-				for _, app := range apps {
-					connected = func() int {
-						return tcHandler.Connected(app.Guid)
+					Eventually(metricProc.msgChan).Should(Receive())
+					guid := app.Guid
+					inMap := func() bool {
+						return metricProc.isWatched(guid)
 					}
-
-					Expect(metricProc.watchedApps).To(HaveKey(app.Guid))
-					Eventually(connected).Should(Equal(1))
-
-					Expect(metricProc.watchedApps[app.Guid].Close()).To(Succeed())
-					Eventually(connected).Should(Equal(0))
+					Eventually(inMap).Should(BeTrue())
 				}
 			})
 		})
@@ -494,15 +542,17 @@ func testNewEvent(appGuid string) *events.Envelope {
 }
 
 type testWebsocketHandler struct {
-	connected map[string]int
-	mutex     *sync.RWMutex
+	conns map[string]*websocket.Conn
+	sync.RWMutex
 }
 
-func (t *testWebsocketHandler) Connected(appGuid string) int {
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-
-	return t.connected[appGuid]
+func (t *testWebsocketHandler) WriteMessage(appGuid string) error {
+	t.Lock()
+	defer t.Unlock()
+	Expect(t.conns).To(HaveKey(appGuid))
+	conn := t.conns[appGuid]
+	buf, _ := proto.Marshal(testNewEvent(appGuid))
+	return conn.WriteMessage(websocket.BinaryMessage, buf)
 }
 
 func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -511,29 +561,25 @@ func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	Expect(match).To(HaveLen(2), "unable to extract app GUID from request path")
 	appGuid := match[1]
 
-	t.mutex.Lock()
-	t.connected[appGuid]++
-	t.mutex.Unlock()
-
-	defer func() {
-		t.mutex.Lock()
-		t.connected[appGuid]--
-		defer t.mutex.Unlock()
-	}()
-
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
+	t.RLock()
+	Expect(t.conns).ToNot(HaveKey(appGuid))
+	t.RUnlock()
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	Expect(err).NotTo(HaveOccurred())
+	t.Lock()
+	t.conns[appGuid] = conn
+	t.Unlock()
 	defer conn.Close()
 
 	cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	defer conn.WriteControl(websocket.CloseMessage, cm, time.Time{})
 
-	buf, _ := proto.Marshal(testNewEvent(appGuid))
-	err = conn.WriteMessage(websocket.BinaryMessage, buf)
+	err = t.WriteMessage(appGuid)
 	Expect(err).ToNot(HaveOccurred())
 
 	for {
