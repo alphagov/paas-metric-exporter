@@ -364,16 +364,12 @@ var _ = Describe("Main", func() {
 		}
 
 		var (
-			apps            []cfclient.App
-			teapot          string
-			calledEndpoints map[string]int
-			tkj             tokenJSON
+			apps []cfclient.App
+			tkj  tokenJSON
 		)
 
 		Context("refreshToken has expired", func() {
 			BeforeEach(func() {
-				teapot = `{"status":"teapot"}`
-
 				tkj = tokenJSON{
 					AccessToken:  "access",
 					TokenType:    "bearer",
@@ -381,8 +377,6 @@ var _ = Describe("Main", func() {
 					ExpiresIn:    5,
 					Expires:      5,
 				}
-
-				calledEndpoints = map[string]int{}
 
 				apps = []cfclient.App{
 					{Guid: "55555555-5555-5555-5555-555555555555"},
