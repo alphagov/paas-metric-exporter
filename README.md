@@ -32,7 +32,7 @@ You can use following template fields in your metric template:
 * `{{.GUID}}` - Application ID
 * `{{.Index}}` - BOSH job index e.g. `0`
 * `{{.Instance}}` - Application instance
-* `{{.Job}}` - BOSH kob name e.g `cell`
+* `{{.Job}}` - BOSH job name e.g `cell`
 * `{{.Metric}}` - cpu, memoryBytes or diskBytes
 * `{{.Organisation}}` - a CF organisation that the app belongs to
 * `{{.Space}}` - CF space used to deploy application 
