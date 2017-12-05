@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
-	"github.com/cloudfoundry/sonde-go/events"
+	"github.com/alphagov/paas-cf-apps-statsd/events"
 )
 
 // Vars will contain the variables the tenant could use to compose their
@@ -20,12 +19,6 @@ type Vars struct {
 	Metric       string // cpu, memory, disk
 	Organisation string
 	Space        string
-}
-
-type Stream struct {
-	Msg  *events.Envelope
-	App  cfclient.App
-	Tmpl string
 }
 
 // Compose the new metric from all given data.
@@ -45,7 +38,7 @@ func (mv *Vars) Compose(providedTemplate string) (string, error) {
 	return metric.String(), nil
 }
 
-func (mv *Vars) Parse(stream *Stream) {
+func (mv *Vars) Parse(stream *events.AppEvent) {
 	mv.App = stream.App.Name
 	mv.GUID = stream.App.Guid
 	mv.CellId = stream.Msg.GetIndex()

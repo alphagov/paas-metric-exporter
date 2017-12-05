@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alphagov/paas-cf-apps-statsd/events"
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/alphagov/paas-cf-apps-statsd/processors"
 	"github.com/cloudfoundry-community/go-cfclient"
@@ -26,20 +27,15 @@ var (
 func main() {
 	kingpin.Parse()
 
-	metricProc := &metricProcessor{
-		cfClientConfig: &cfclient.Config{
-			ApiAddress:        *apiEndpoint,
-			SkipSslValidation: *skipSSLValidation,
-			Username:          *username,
-			Password:          *password,
-		},
-
-		msgChan:     make(chan *metrics.Stream),
-		errorChan:   make(chan error),
-		watchedApps: make(map[string]chan cfclient.App),
+	cfClientConfig := &cfclient.Config{
+		ApiAddress:        *apiEndpoint,
+		SkipSslValidation: *skipSSLValidation,
+		Username:          *username,
+		Password:          *password,
 	}
+	eventFetcher := events.NewFetcher(cfClientConfig)
 
-	containerMetricProcessor := processors.NewContainerMetricProcessor()
+	containerMetricProcessor := processors.NewContainerMetricProcessor(*metricTemplate)
 
 	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
 	sender.CreateSocket()
@@ -48,14 +44,14 @@ func main() {
 	var proc_err error
 
 	go func() {
-		for err := range metricProc.errorChan {
+		for err := range eventFetcher.ErrorChan {
 			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
 		}
 	}()
 
 	go func() {
 		for {
-			err := metricProc.process(*updateFrequency)
+			err := eventFetcher.Run(*updateFrequency)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(-1)
@@ -63,7 +59,7 @@ func main() {
 		}
 	}()
 
-	for wrapper := range metricProc.msgChan {
+	for wrapper := range eventFetcher.MsgChan {
 		processedMetrics, proc_err = containerMetricProcessor.Process(wrapper)
 
 		if proc_err != nil {

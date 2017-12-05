@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"crypto/tls"
@@ -7,23 +7,31 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
 	"github.com/cloudfoundry/sonde-go/events"
 )
 
-type metricProcessor struct {
+type Fetcher struct {
 	cfClient       *cfclient.Client
 	cfClientConfig *cfclient.Config
-	msgChan        chan *metrics.Stream
-	errorChan      chan error
+	MsgChan        chan *AppEvent
+	ErrorChan      chan error
 	watchedApps    map[string]chan cfclient.App
 	sync.RWMutex
 }
 
+func NewFetcher(cfClientConfig *cfclient.Config) *Fetcher {
+	return &Fetcher{
+		cfClientConfig: cfClientConfig,
+		MsgChan:        make(chan *AppEvent),
+		ErrorChan:      make(chan error),
+		watchedApps:    make(map[string]chan cfclient.App),
+	}
+}
+
 // RefreshAuthToken satisfies the `consumer.TokenRefresher` interface.
-func (m *metricProcessor) RefreshAuthToken() (token string, authError error) {
+func (m *Fetcher) RefreshAuthToken() (token string, authError error) {
 	token, err := m.cfClient.GetToken()
 	if err != nil {
 		err := m.authenticate()
@@ -38,7 +46,7 @@ func (m *metricProcessor) RefreshAuthToken() (token string, authError error) {
 	return token, nil
 }
 
-func (m *metricProcessor) process(updateFrequency int64) error {
+func (m *Fetcher) Run(updateFrequency int64) error {
 	for {
 		err := m.authenticate()
 		if err != nil {
@@ -59,7 +67,7 @@ func (m *metricProcessor) process(updateFrequency int64) error {
 	}
 }
 
-func (m *metricProcessor) authenticate() (err error) {
+func (m *Fetcher) authenticate() (err error) {
 	client, err := cfclient.NewClient(m.cfClientConfig)
 	if err != nil {
 		return err
@@ -69,10 +77,11 @@ func (m *metricProcessor) authenticate() (err error) {
 	return nil
 }
 
-func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
+func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 	appChan := make(chan cfclient.App)
 	go func() {
-		conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tls.Config{InsecureSkipVerify: *skipSSLValidation}, nil)
+		tlsConfig := tls.Config{InsecureSkipVerify: m.cfClientConfig.SkipSslValidation}
+		conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tlsConfig, nil)
 		conn.RefreshTokenFrom(m)
 		defer func() {
 			m.Lock()
@@ -82,7 +91,7 @@ func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
 
 		authToken, err := m.cfClient.GetToken()
 		if err != nil {
-			m.errorChan <- err
+			m.ErrorChan <- err
 			return
 		}
 		msgs, errs := conn.Stream(app.Guid, authToken)
@@ -92,9 +101,9 @@ func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
 				if !ok {
 					return
 				}
-				stream := metrics.Stream{Msg: message, App: app, Tmpl: *metricTemplate}
+				stream := AppEvent{Msg: message, App: app}
 				if *message.EventType == events.Envelope_ContainerMetric {
-					m.msgChan <- &stream
+					m.MsgChan <- &stream
 				}
 			case err, ok := <-errs:
 				if !ok {
@@ -104,7 +113,7 @@ func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
 				if err == nil {
 					continue
 				}
-				m.errorChan <- err
+				m.ErrorChan <- err
 			case updatedApp, ok := <-appChan:
 				if !ok {
 					appChan = nil
@@ -118,7 +127,7 @@ func (m *metricProcessor) startStream(app cfclient.App) chan cfclient.App {
 	return appChan
 }
 
-func (m *metricProcessor) getApps() ([]cfclient.App, error) {
+func (m *Fetcher) getApps() ([]cfclient.App, error) {
 	q := url.Values{}
 	apps, err := m.cfClient.ListAppsByQuery(q)
 	if err != nil {
@@ -132,14 +141,14 @@ func (m *metricProcessor) getApps() ([]cfclient.App, error) {
 	return apps, nil
 }
 
-func (m *metricProcessor) isWatched(guid string) bool {
+func (m *Fetcher) isWatched(guid string) bool {
 	m.RLock()
 	defer m.RUnlock()
 	_, exists := m.watchedApps[guid]
 	return exists
 }
 
-func (m *metricProcessor) updateApps() error {
+func (m *Fetcher) updateApps() error {
 
 	m.Lock()
 	defer m.Unlock()

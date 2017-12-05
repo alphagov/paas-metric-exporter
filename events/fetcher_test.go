@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/gomega/ghttp"
@@ -21,14 +20,14 @@ type TokenErr struct {
 	Description string `json:"error_description"`
 }
 
-var _ = Describe("metricProcessor", func() {
+var _ = Describe("Fetcher", func() {
 	var (
-		apiServer  *ghttp.Server
-		tcServer   *ghttp.Server
-		tcHandler  mockWebsocketHandler
-		endpoint   cfclient.Endpoint
-		token      oauth2.Token
-		metricProc *metricProcessor
+		apiServer *ghttp.Server
+		tcServer  *ghttp.Server
+		tcHandler mockWebsocketHandler
+		endpoint  cfclient.Endpoint
+		token     oauth2.Token
+		fetcher   *Fetcher
 	)
 
 	BeforeEach(func() {
@@ -68,26 +67,24 @@ var _ = Describe("metricProcessor", func() {
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		metricProc = &metricProcessor{
+		fetcher = &Fetcher{
 			cfClientConfig: &cfclient.Config{
 				ApiAddress: apiServer.URL(),
 				Username:   "user",
 				Password:   "pass",
 			},
-
-			msgChan:     make(chan *metrics.Stream, 10),
-			errorChan:   make(chan error, 10),
+			MsgChan:     make(chan *AppEvent, 10),
+			ErrorChan:   make(chan error, 10),
 			watchedApps: make(map[string]chan cfclient.App),
 		}
-
-		metricProc.authenticate()
+		fetcher.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(metricProc.msgChan).To(BeEmpty())
-		close(metricProc.msgChan)
-		Expect(metricProc.errorChan).To(BeEmpty())
-		close(metricProc.errorChan)
+		Expect(fetcher.MsgChan).To(BeEmpty())
+		close(fetcher.MsgChan)
+		Expect(fetcher.ErrorChan).To(BeEmpty())
+		close(fetcher.ErrorChan)
 	})
 
 	Describe("updateApps", func() {
@@ -138,20 +135,20 @@ var _ = Describe("metricProcessor", func() {
 			})
 
 			It("update the metrics name", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
-				var eventBeforeRename *metrics.Stream
-				Eventually(metricProc.msgChan).Should(Receive(&eventBeforeRename))
+				var eventBeforeRename *AppEvent
+				Eventually(fetcher.MsgChan).Should(Receive(&eventBeforeRename))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
 					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
-					var eventAfterRename *metrics.Stream
-					Eventually(metricProc.msgChan).Should(Receive(&eventAfterRename))
+					var eventAfterRename *AppEvent
+					Eventually(fetcher.MsgChan).Should(Receive(&eventAfterRename))
 					return eventAfterRename.App.Name
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 				Eventually(retrieveNewName).Should(Equal("bar"))
 			})
 		})
@@ -169,8 +166,8 @@ var _ = Describe("metricProcessor", func() {
 			})
 
 			It("should not start any watchers", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
-				Consistently(metricProc.msgChan).Should(BeEmpty())
+				Expect(fetcher.updateApps()).To(Succeed())
+				Consistently(fetcher.MsgChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
@@ -223,23 +220,23 @@ var _ = Describe("metricProcessor", func() {
 
 			It("should start three watchers and disconnect when requested", func() {
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				for _, app := range apps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				for _, app := range apps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
 				}
@@ -322,28 +319,28 @@ var _ = Describe("metricProcessor", func() {
 			})
 
 			It("should stop two old watchers and start two new watchers", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				stoppedApps := appsBefore[:2]
 				for _, app := range stoppedApps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
 				}
 
 				newApps := apps[1:]
 				for _, app := range newApps {
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
 				}
@@ -351,7 +348,7 @@ var _ = Describe("metricProcessor", func() {
 		})
 	})
 
-	Describe("metricProcessor", func() {
+	Describe("Fetcher", func() {
 		type tokenJSON struct {
 			AccessToken  string        `json:"access_token"`
 			TokenType    string        `json:"token_type"`
@@ -418,7 +415,7 @@ var _ = Describe("metricProcessor", func() {
 			It("should try to refresh refreshToken", func() {
 				var updateFrequency int64 = 1
 
-				err := metricProc.process(updateFrequency)
+				err := fetcher.Run(updateFrequency)
 				Eventually(err, 5*time.Second).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})
