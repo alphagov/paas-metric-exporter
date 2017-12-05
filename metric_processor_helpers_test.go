@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func testAppResponse(apps []cfclient.App) cfclient.AppResponse {
+func mockAppResponse(apps []cfclient.App) cfclient.AppResponse {
 	resp := cfclient.AppResponse{
 		Count:     len(apps),
 		Pages:     1,
@@ -32,21 +32,21 @@ func testAppResponse(apps []cfclient.App) cfclient.AppResponse {
 	return resp
 }
 
-func testSpaceResource(spaceGuid, orgGuid string) cfclient.SpaceResource {
+func mockSpaceResource(spaceGuid, orgGuid string) cfclient.SpaceResource {
 	return cfclient.SpaceResource{
 		Meta:   cfclient.Meta{Guid: spaceGuid},
 		Entity: cfclient.Space{OrgURL: "/v2/organizations/" + orgGuid},
 	}
 }
 
-func testOrgResource(orgGuid string) cfclient.OrgResource {
+func mockOrgResource(orgGuid string) cfclient.OrgResource {
 	return cfclient.OrgResource{
 		Meta:   cfclient.Meta{Guid: orgGuid},
 		Entity: cfclient.Org{},
 	}
 }
 
-func testNewEvent(appGuid string) *events.Envelope {
+func mockNewEvent(appGuid string) *events.Envelope {
 	metric := &events.ContainerMetric{
 		ApplicationId: proto.String(appGuid),
 		InstanceIndex: proto.Int32(1),
@@ -61,25 +61,24 @@ func testNewEvent(appGuid string) *events.Envelope {
 		Origin:          proto.String("fake-origin-1"),
 		Timestamp:       proto.Int64(time.Now().UnixNano()),
 	}
-
 	return event
 }
 
-type testWebsocketHandler struct {
+type mockWebsocketHandler struct {
 	conns map[string]*websocket.Conn
 	sync.RWMutex
 }
 
-func (t *testWebsocketHandler) WriteMessage(appGuid string) error {
+func (t *mockWebsocketHandler) WriteMessage(appGuid string) error {
 	t.Lock()
 	defer t.Unlock()
 	Expect(t.conns).To(HaveKey(appGuid))
 	conn := t.conns[appGuid]
-	buf, _ := proto.Marshal(testNewEvent(appGuid))
+	buf, _ := proto.Marshal(mockNewEvent(appGuid))
 	return conn.WriteMessage(websocket.BinaryMessage, buf)
 }
 
-func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (t *mockWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re := regexp.MustCompile(`/apps/([^/]+)/stream`)
 	match := re.FindStringSubmatch(r.URL.Path)
 	Expect(match).To(HaveLen(2), "unable to extract app GUID from request path")
@@ -114,7 +113,7 @@ func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 var _ = Describe("test helpers", func() {
-	Describe("testAppResponse", func() {
+	Describe("mockAppResponse", func() {
 		var apps []cfclient.App
 
 		Context("no apps", func() {
@@ -124,7 +123,7 @@ var _ = Describe("test helpers", func() {
 
 			It("should return a single page with no apps", func() {
 				Expect(
-					testAppResponse(apps),
+					mockAppResponse(apps),
 				).To(
 					Equal(cfclient.AppResponse{
 						Count:     0,
@@ -146,7 +145,7 @@ var _ = Describe("test helpers", func() {
 
 			It("should return a single page with three apps", func() {
 				Expect(
-					testAppResponse(apps),
+					mockAppResponse(apps),
 				).To(
 					Equal(cfclient.AppResponse{
 						Count: 3,

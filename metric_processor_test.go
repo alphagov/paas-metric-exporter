@@ -25,7 +25,7 @@ var _ = Describe("metricProcessor", func() {
 	var (
 		apiServer  *ghttp.Server
 		tcServer   *ghttp.Server
-		tcHandler  testWebsocketHandler
+		tcHandler  mockWebsocketHandler
 		endpoint   cfclient.Endpoint
 		token      oauth2.Token
 		metricProc *metricProcessor
@@ -63,7 +63,7 @@ var _ = Describe("metricProcessor", func() {
 			),
 		)
 
-		tcHandler = testWebsocketHandler{
+		tcHandler = mockWebsocketHandler{
 			conns: map[string]*websocket.Conn{},
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
@@ -112,27 +112,27 @@ var _ = Describe("metricProcessor", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBeforeRename)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeRename)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsAfterRename)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterRename)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 				)
 			})
@@ -163,7 +163,7 @@ var _ = Describe("metricProcessor", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 				)
 			})
@@ -188,35 +188,35 @@ var _ = Describe("metricProcessor", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(afterApps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(afterApps)),
 					),
 				)
 			})
@@ -264,59 +264,59 @@ var _ = Describe("metricProcessor", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBefore)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBefore)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 				)
 			})
@@ -385,7 +385,7 @@ var _ = Describe("metricProcessor", func() {
 				}
 
 				apiServer.RouteToHandler("GET", "/v2/apps",
-					ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+					ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 				)
 				apiServer.RouteToHandler("GET", "/v2/info",
 					ghttp.RespondWithJSONEncoded(http.StatusOK, endpoint),
