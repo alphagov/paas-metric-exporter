@@ -1,4 +1,4 @@
-package main_test
+package events_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestMainSuite(t *testing.T) {
+func TestMetric(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Main Suite")
+	RunSpecs(t, "Events Suite")
 }

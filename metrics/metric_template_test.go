@@ -1,6 +1,7 @@
 package metrics_test
 
 import (
+	"github.com/alphagov/paas-cf-apps-statsd/events"
 	. "github.com/alphagov/paas-cf-apps-statsd/metrics"
 
 	. "github.com/onsi/ginkgo"
@@ -8,9 +9,8 @@ import (
 )
 
 var _ = Describe("MetricTemplate", func() {
-	stream := Stream{
-		Tmpl: "{{.Organisation}}.{{.Space}}.{{.App}}.{{.Metric}}",
-	}
+	tmpl := "{{.Organisation}}.{{.Space}}.{{.App}}.{{.Metric}}"
+	appEvent := events.AppEvent{}
 
 	data := Vars{
 		App:          "fakeApp",
@@ -24,7 +24,7 @@ var _ = Describe("MetricTemplate", func() {
 	}
 
 	It("should generate a metric name from template", func() {
-		metric, err := data.Compose(stream.Tmpl)
+		metric, err := data.Compose(tmpl)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(metric).To(Equal("fakeOrg.fakeSpace.fakeApp.cpu"))
 	})
@@ -41,11 +41,11 @@ var _ = Describe("MetricTemplate", func() {
 
 	It("should parse the data from the stream", func() {
 		mv := Vars{}
-		stream.App.Guid = "dhbd287bd8-2y3g8j-09197sg-81gs8s"
-		mv.Parse(&stream)
+		appEvent.App.Guid = "dhbd287bd8-2y3g8j-09197sg-81gs8s"
+		mv.Parse(&appEvent)
 
 		metric, err := mv.Compose("{{.GUID}}")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(metric).To(Equal(stream.App.Guid))
+		Expect(metric).To(Equal(appEvent.App.Guid))
 	})
 })

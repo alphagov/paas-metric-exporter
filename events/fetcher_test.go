@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,13 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"sync"
 	"time"
 
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/cloudfoundry-community/go-cfclient"
-	"github.com/cloudfoundry/sonde-go/events"
-	"github.com/gogo/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/gomega/ghttp"
 	"golang.org/x/oauth2"
@@ -24,14 +20,14 @@ type TokenErr struct {
 	Description string `json:"error_description"`
 }
 
-var _ = Describe("Main", func() {
+var _ = Describe("Fetcher", func() {
 	var (
-		apiServer  *ghttp.Server
-		tcServer   *ghttp.Server
-		tcHandler  testWebsocketHandler
-		endpoint   cfclient.Endpoint
-		token      oauth2.Token
-		metricProc *metricProcessor
+		apiServer *ghttp.Server
+		tcServer  *ghttp.Server
+		tcHandler mockWebsocketHandler
+		endpoint  cfclient.Endpoint
+		token     oauth2.Token
+		fetcher   *Fetcher
 	)
 
 	BeforeEach(func() {
@@ -66,31 +62,29 @@ var _ = Describe("Main", func() {
 			),
 		)
 
-		tcHandler = testWebsocketHandler{
+		tcHandler = mockWebsocketHandler{
 			conns: map[string]*websocket.Conn{},
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		metricProc = &metricProcessor{
+		fetcher = &Fetcher{
 			cfClientConfig: &cfclient.Config{
 				ApiAddress: apiServer.URL(),
 				Username:   "user",
 				Password:   "pass",
 			},
-
-			msgChan:     make(chan *metrics.Stream, 10),
-			errorChan:   make(chan error, 10),
+			MsgChan:     make(chan *AppEvent, 10),
+			ErrorChan:   make(chan error, 10),
 			watchedApps: make(map[string]chan cfclient.App),
 		}
-
-		metricProc.authenticate()
+		fetcher.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(metricProc.msgChan).To(BeEmpty())
-		close(metricProc.msgChan)
-		Expect(metricProc.errorChan).To(BeEmpty())
-		close(metricProc.errorChan)
+		Expect(fetcher.MsgChan).To(BeEmpty())
+		close(fetcher.MsgChan)
+		Expect(fetcher.ErrorChan).To(BeEmpty())
+		close(fetcher.ErrorChan)
 	})
 
 	Describe("updateApps", func() {
@@ -115,46 +109,46 @@ var _ = Describe("Main", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBeforeRename)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeRename)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsAfterRename)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterRename)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 				)
 			})
 
 			It("update the metrics name", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
-				var eventBeforeRename *metrics.Stream
-				Eventually(metricProc.msgChan).Should(Receive(&eventBeforeRename))
+				var eventBeforeRename *AppEvent
+				Eventually(fetcher.MsgChan).Should(Receive(&eventBeforeRename))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
 					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
-					var eventAfterRename *metrics.Stream
-					Eventually(metricProc.msgChan).Should(Receive(&eventAfterRename))
+					var eventAfterRename *AppEvent
+					Eventually(fetcher.MsgChan).Should(Receive(&eventAfterRename))
 					return eventAfterRename.App.Name
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 				Eventually(retrieveNewName).Should(Equal("bar"))
 			})
 		})
@@ -166,14 +160,14 @@ var _ = Describe("Main", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 				)
 			})
 
 			It("should not start any watchers", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
-				Consistently(metricProc.msgChan).Should(BeEmpty())
+				Expect(fetcher.updateApps()).To(Succeed())
+				Consistently(fetcher.MsgChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
@@ -191,58 +185,58 @@ var _ = Describe("Main", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(afterApps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(afterApps)),
 					),
 				)
 			})
 
 			It("should start three watchers and disconnect when requested", func() {
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				for _, app := range apps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				for _, app := range apps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
 				}
@@ -267,86 +261,86 @@ var _ = Describe("Main", func() {
 				apiServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(appsBefore)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBefore)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/apps"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testSpaceResource(spaceGuid, orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, testOrgResource(orgGuid)),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
 					),
 				)
 			})
 
 			It("should stop two old watchers and start two new watchers", func() {
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 				}
 
-				Expect(metricProc.updateApps()).To(Succeed())
+				Expect(fetcher.updateApps()).To(Succeed())
 
 				stoppedApps := appsBefore[:2]
 				for _, app := range stoppedApps {
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
 				}
 
 				newApps := apps[1:]
 				for _, app := range newApps {
-					Eventually(metricProc.msgChan).Should(Receive())
+					Eventually(fetcher.MsgChan).Should(Receive())
 					guid := app.Guid
 					inMap := func() bool {
-						return metricProc.isWatched(guid)
+						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
 				}
@@ -354,7 +348,7 @@ var _ = Describe("Main", func() {
 		})
 	})
 
-	Describe("metricProcessor", func() {
+	Describe("Fetcher", func() {
 		type tokenJSON struct {
 			AccessToken  string        `json:"access_token"`
 			TokenType    string        `json:"token_type"`
@@ -388,7 +382,7 @@ var _ = Describe("Main", func() {
 				}
 
 				apiServer.RouteToHandler("GET", "/v2/apps",
-					ghttp.RespondWithJSONEncoded(http.StatusOK, testAppResponse(apps)),
+					ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(apps)),
 				)
 				apiServer.RouteToHandler("GET", "/v2/info",
 					ghttp.RespondWithJSONEncoded(http.StatusOK, endpoint),
@@ -421,164 +415,10 @@ var _ = Describe("Main", func() {
 			It("should try to refresh refreshToken", func() {
 				var updateFrequency int64 = 1
 
-				err := metricProc.process(updateFrequency)
+				err := fetcher.Run(updateFrequency)
 				Eventually(err, 5*time.Second).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})
 		})
 	})
 })
-
-var _ = Describe("test helpers", func() {
-	Describe("testAppResponse", func() {
-		var apps []cfclient.App
-
-		Context("no apps", func() {
-			BeforeEach(func() {
-				apps = []cfclient.App{}
-			})
-
-			It("should return a single page with no apps", func() {
-				Expect(
-					testAppResponse(apps),
-				).To(
-					Equal(cfclient.AppResponse{
-						Count:     0,
-						Pages:     1,
-						Resources: []cfclient.AppResource{},
-					}),
-				)
-			})
-		})
-
-		Context("three apps", func() {
-			BeforeEach(func() {
-				apps = []cfclient.App{
-					{Guid: "11111111-1111-1111-1111-111111111111"},
-					{Guid: "22222222-2222-2222-2222-222222222222"},
-					{Guid: "33333333-3333-3333-3333-333333333333"},
-				}
-			})
-
-			It("should return a single page with three apps", func() {
-				Expect(
-					testAppResponse(apps),
-				).To(
-					Equal(cfclient.AppResponse{
-						Count: 3,
-						Pages: 1,
-						Resources: []cfclient.AppResource{
-							{
-								Meta:   cfclient.Meta{Guid: apps[0].Guid},
-								Entity: apps[0],
-							}, {
-								Meta:   cfclient.Meta{Guid: apps[1].Guid},
-								Entity: apps[1],
-							}, {
-								Meta:   cfclient.Meta{Guid: apps[2].Guid},
-								Entity: apps[2],
-							},
-						},
-					}),
-				)
-			})
-		})
-	})
-})
-
-func testAppResponse(apps []cfclient.App) cfclient.AppResponse {
-	resp := cfclient.AppResponse{
-		Count:     len(apps),
-		Pages:     1,
-		Resources: make([]cfclient.AppResource, len(apps)),
-	}
-
-	for i, app := range apps {
-		resp.Resources[i] = cfclient.AppResource{
-			Meta:   cfclient.Meta{Guid: app.Guid},
-			Entity: app,
-		}
-	}
-
-	return resp
-}
-
-func testSpaceResource(spaceGuid, orgGuid string) cfclient.SpaceResource {
-	return cfclient.SpaceResource{
-		Meta:   cfclient.Meta{Guid: spaceGuid},
-		Entity: cfclient.Space{OrgURL: "/v2/organizations/" + orgGuid},
-	}
-}
-
-func testOrgResource(orgGuid string) cfclient.OrgResource {
-	return cfclient.OrgResource{
-		Meta:   cfclient.Meta{Guid: orgGuid},
-		Entity: cfclient.Org{},
-	}
-}
-
-func testNewEvent(appGuid string) *events.Envelope {
-	metric := &events.ContainerMetric{
-		ApplicationId: proto.String(appGuid),
-		InstanceIndex: proto.Int32(1),
-		CpuPercentage: proto.Float64(2),
-		MemoryBytes:   proto.Uint64(3),
-		DiskBytes:     proto.Uint64(4),
-	}
-	event := &events.Envelope{
-		ContainerMetric: metric,
-		EventType:       events.Envelope_ContainerMetric.Enum(),
-		Origin:          proto.String("fake-origin-1"),
-		Timestamp:       proto.Int64(time.Now().UnixNano()),
-	}
-
-	return event
-}
-
-type testWebsocketHandler struct {
-	conns map[string]*websocket.Conn
-	sync.RWMutex
-}
-
-func (t *testWebsocketHandler) WriteMessage(appGuid string) error {
-	t.Lock()
-	defer t.Unlock()
-	Expect(t.conns).To(HaveKey(appGuid))
-	conn := t.conns[appGuid]
-	buf, _ := proto.Marshal(testNewEvent(appGuid))
-	return conn.WriteMessage(websocket.BinaryMessage, buf)
-}
-
-func (t *testWebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	re := regexp.MustCompile(`/apps/([^/]+)/stream`)
-	match := re.FindStringSubmatch(r.URL.Path)
-	Expect(match).To(HaveLen(2), "unable to extract app GUID from request path")
-	appGuid := match[1]
-
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
-	}
-
-	t.RLock()
-	Expect(t.conns).ToNot(HaveKey(appGuid))
-	t.RUnlock()
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	Expect(err).NotTo(HaveOccurred())
-	t.Lock()
-	t.conns[appGuid] = conn
-	t.Unlock()
-	defer conn.Close()
-
-	cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	defer conn.WriteControl(websocket.CloseMessage, cm, time.Time{})
-
-	err = t.WriteMessage(appGuid)
-	Expect(err).ToNot(HaveOccurred())
-
-	for {
-		if _, _, err := conn.NextReader(); err != nil {
-			break
-		}
-	}
-}
