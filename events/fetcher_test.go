@@ -73,16 +73,16 @@ var _ = Describe("Fetcher", func() {
 				Username:   "user",
 				Password:   "pass",
 			},
-			MsgChan:     make(chan *AppEvent, 10),
-			ErrorChan:   make(chan error, 10),
-			watchedApps: make(map[string]chan cfclient.App),
+			AppEventChan: make(chan *AppEvent, 10),
+			ErrorChan:    make(chan error, 10),
+			watchedApps:  make(map[string]chan cfclient.App),
 		}
 		fetcher.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(fetcher.MsgChan).To(BeEmpty())
-		close(fetcher.MsgChan)
+		Expect(fetcher.AppEventChan).To(BeEmpty())
+		close(fetcher.AppEventChan)
 		Expect(fetcher.ErrorChan).To(BeEmpty())
 		close(fetcher.ErrorChan)
 	})
@@ -138,13 +138,13 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 
 				var eventBeforeRename *AppEvent
-				Eventually(fetcher.MsgChan).Should(Receive(&eventBeforeRename))
+				Eventually(fetcher.AppEventChan).Should(Receive(&eventBeforeRename))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
 					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
 					var eventAfterRename *AppEvent
-					Eventually(fetcher.MsgChan).Should(Receive(&eventAfterRename))
+					Eventually(fetcher.AppEventChan).Should(Receive(&eventAfterRename))
 					return eventAfterRename.App.Name
 				}
 
@@ -167,7 +167,7 @@ var _ = Describe("Fetcher", func() {
 
 			It("should not start any watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Consistently(fetcher.MsgChan).Should(BeEmpty())
+				Consistently(fetcher.AppEventChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
@@ -228,7 +228,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(fetcher.AppEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -321,7 +321,7 @@ var _ = Describe("Fetcher", func() {
 			It("should stop two old watchers and start two new watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(fetcher.AppEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -337,7 +337,7 @@ var _ = Describe("Fetcher", func() {
 
 				newApps := apps[1:]
 				for _, app := range newApps {
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(fetcher.AppEventChan).Should(Receive())
 					guid := app.Guid
 					inMap := func() bool {
 						return fetcher.isWatched(guid)

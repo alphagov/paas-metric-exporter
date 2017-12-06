@@ -45,7 +45,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 			App: cfclient.App{
 				Guid: applicationId,
 			},
-			Msg: event,
+			Envelope: event,
 		}
 	})
 

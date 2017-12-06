@@ -30,7 +30,7 @@ func (p *ContainerMetricProcessor) Process(appEvent *events.AppEvent) ([]metrics
 }
 
 func (p *ContainerMetricProcessor) ProcessContainerMetric(metricType string, appEvent *events.AppEvent) (metrics.GaugeMetric, error) {
-	containerMetricEvent := appEvent.Msg.GetContainerMetric()
+	containerMetricEvent := appEvent.Envelope.GetContainerMetric()
 	instanceIndex := strconv.Itoa(int(containerMetricEvent.GetInstanceIndex()))
 
 	var err error

@@ -15,7 +15,7 @@ import (
 type Fetcher struct {
 	cfClient       *cfclient.Client
 	cfClientConfig *cfclient.Config
-	MsgChan        chan *AppEvent
+	AppEventChan   chan *AppEvent
 	ErrorChan      chan error
 	watchedApps    map[string]chan cfclient.App
 	sync.RWMutex
@@ -24,7 +24,7 @@ type Fetcher struct {
 func NewFetcher(cfClientConfig *cfclient.Config) *Fetcher {
 	return &Fetcher{
 		cfClientConfig: cfClientConfig,
-		MsgChan:        make(chan *AppEvent),
+		AppEventChan:   make(chan *AppEvent),
 		ErrorChan:      make(chan error),
 		watchedApps:    make(map[string]chan cfclient.App),
 	}
@@ -101,9 +101,9 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 				if !ok {
 					return
 				}
-				stream := AppEvent{Msg: message, App: app}
-				if *message.EventType == events.Envelope_ContainerMetric {
-					m.MsgChan <- &stream
+				stream := AppEvent{Envelope: message, App: app}
+				if *message.EventType == events.Envelope_ContainerMetric || *message.EventType == events.Envelope_LogMessage {
+					m.AppEventChan <- &stream
 				}
 			case err, ok := <-errs:
 				if !ok {

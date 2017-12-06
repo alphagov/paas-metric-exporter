@@ -6,6 +6,6 @@ import (
 )
 
 type AppEvent struct {
-	Msg *events.Envelope
-	App cfclient.App
+	Envelope *events.Envelope
+	App      cfclient.App
 }

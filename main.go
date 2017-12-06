@@ -8,6 +8,7 @@ import (
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/alphagov/paas-cf-apps-statsd/processors"
 	"github.com/cloudfoundry-community/go-cfclient"
+	sonde_events "github.com/cloudfoundry/sonde-go/events"
 	"github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -35,14 +36,6 @@ func main() {
 	}
 	eventFetcher := events.NewFetcher(cfClientConfig)
 
-	containerMetricProcessor := processors.NewContainerMetricProcessor(*metricTemplate)
-
-	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
-	sender.CreateSocket()
-
-	var processedMetrics []metrics.Metric
-	var proc_err error
-
 	go func() {
 		for err := range eventFetcher.ErrorChan {
 			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
@@ -59,21 +52,38 @@ func main() {
 		}
 	}()
 
-	for wrapper := range eventFetcher.MsgChan {
-		processedMetrics, proc_err = containerMetricProcessor.Process(wrapper)
+	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
+	sender.CreateSocket()
+
+	sendMetrics(eventFetcher.AppEventChan, sender)
+}
+
+func sendMetrics(msgChan chan (*events.AppEvent), sender *statsd.StatsdClient) {
+	var processedMetrics []metrics.Metric
+	var proc_err error
+
+	processors := map[sonde_events.Envelope_EventType]processors.Processor{
+		sonde_events.Envelope_ContainerMetric: processors.NewContainerMetricProcessor(*metricTemplate),
+		sonde_events.Envelope_LogMessage:      processors.NewLogMessageProcessor(*metricTemplate),
+	}
+
+	for appEvent := range msgChan {
+		processor, ok := processors[appEvent.Envelope.GetEventType()]
+		if !ok {
+			continue
+		}
+		processedMetrics, proc_err = processor.Process(appEvent)
 
 		if proc_err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", proc_err.Error())
 		} else {
-			if len(processedMetrics) > 0 {
-				for _, metric := range processedMetrics {
-					if *debug {
-						fmt.Println(metric)
-					} else {
-						err := metric.Send(sender)
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "%v\n", err)
-						}
+			for _, metric := range processedMetrics {
+				if *debug {
+					fmt.Println(metric)
+				} else {
+					err := metric.Send(sender)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%v\n", err)
 					}
 				}
 			}
