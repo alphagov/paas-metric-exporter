@@ -23,12 +23,14 @@ type TokenErr struct {
 
 var _ = Describe("Fetcher", func() {
 	var (
-		apiServer *ghttp.Server
-		tcServer  *ghttp.Server
-		tcHandler mockWebsocketHandler
-		endpoint  cfclient.Endpoint
-		token     oauth2.Token
-		fetcher   *Fetcher
+		apiServer    *ghttp.Server
+		tcServer     *ghttp.Server
+		tcHandler    mockWebsocketHandler
+		endpoint     cfclient.Endpoint
+		token        oauth2.Token
+		fetcher      *Fetcher
+		appEventChan chan *AppEvent
+		errorChan    chan error
 	)
 
 	BeforeEach(func() {
@@ -68,24 +70,29 @@ var _ = Describe("Fetcher", func() {
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		cfClientConfig := &cfclient.Config{
-			ApiAddress: apiServer.URL(),
-			Username:   "user",
-			Password:   "pass",
+		config := &FetcherConfig{
+			CFClientConfig: &cfclient.Config{
+				ApiAddress: apiServer.URL(),
+				Username:   "user",
+				Password:   "pass",
+			},
+			EventTypes: []sonde_events.Envelope_EventType{
+				sonde_events.Envelope_ContainerMetric,
+				sonde_events.Envelope_LogMessage,
+			},
+			UpdateFrequency: 1 * time.Second,
 		}
-		eventTypes := []sonde_events.Envelope_EventType{
-			sonde_events.Envelope_ContainerMetric,
-			sonde_events.Envelope_LogMessage,
-		}
-		fetcher = NewFetcher(cfClientConfig, eventTypes, 10)
+		appEventChan = make(chan *AppEvent, 10)
+		errorChan = make(chan error, 10)
+		fetcher = NewFetcher(config, appEventChan, errorChan)
 		fetcher.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(fetcher.AppEventChan).To(BeEmpty())
-		close(fetcher.AppEventChan)
-		Expect(fetcher.ErrorChan).To(BeEmpty())
-		close(fetcher.ErrorChan)
+		Expect(appEventChan).To(BeEmpty())
+		close(appEventChan)
+		Expect(errorChan).To(BeEmpty())
+		close(errorChan)
 	})
 
 	Describe("updateApps", func() {
@@ -139,13 +146,13 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 
 				var eventBeforeRename *AppEvent
-				Eventually(fetcher.AppEventChan).Should(Receive(&eventBeforeRename))
+				Eventually(appEventChan).Should(Receive(&eventBeforeRename))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
 					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
 					var eventAfterRename *AppEvent
-					Eventually(fetcher.AppEventChan).Should(Receive(&eventAfterRename))
+					Eventually(appEventChan).Should(Receive(&eventAfterRename))
 					return eventAfterRename.App.Name
 				}
 
@@ -168,7 +175,7 @@ var _ = Describe("Fetcher", func() {
 
 			It("should not start any watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Consistently(fetcher.AppEventChan).Should(BeEmpty())
+				Consistently(appEventChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
@@ -229,7 +236,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(fetcher.AppEventChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -322,7 +329,7 @@ var _ = Describe("Fetcher", func() {
 			It("should stop two old watchers and start two new watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
-					Eventually(fetcher.AppEventChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -338,7 +345,7 @@ var _ = Describe("Fetcher", func() {
 
 				newApps := apps[1:]
 				for _, app := range newApps {
-					Eventually(fetcher.AppEventChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 					guid := app.Guid
 					inMap := func() bool {
 						return fetcher.isWatched(guid)
@@ -414,9 +421,7 @@ var _ = Describe("Fetcher", func() {
 			})
 
 			It("should try to refresh refreshToken", func() {
-				var updateFrequency int64 = 1
-
-				err := fetcher.Run(updateFrequency)
+				err := fetcher.Run()
 				Eventually(err, 5*time.Second).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})

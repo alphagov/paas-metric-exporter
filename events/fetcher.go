@@ -12,31 +12,36 @@ import (
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 
+//go:generate counterfeiter -o mocks/fetcher_process.go . FetcherProcess
+type FetcherProcess interface {
+	Run() error
+}
+
+type FetcherConfig struct {
+	CFClientConfig  *cfclient.Config
+	EventTypes      []sonde_events.Envelope_EventType
+	UpdateFrequency time.Duration
+}
+
 type Fetcher struct {
-	cfClient       *cfclient.Client
-	cfClientConfig *cfclient.Config
-	AppEventChan   chan *AppEvent
-	ErrorChan      chan error
-	watchedApps    map[string]chan cfclient.App
-	eventTypes     map[sonde_events.Envelope_EventType]bool
+	config       *FetcherConfig
+	cfClient     *cfclient.Client
+	appEventChan chan *AppEvent
+	errorChan    chan error
+	watchedApps  map[string]chan cfclient.App
 	sync.RWMutex
 }
 
 func NewFetcher(
-	cfClientConfig *cfclient.Config,
-	eventTypesList []sonde_events.Envelope_EventType,
-	chanCapacity int,
+	config *FetcherConfig,
+	appEventChan chan *AppEvent,
+	errorChan chan error,
 ) *Fetcher {
-	eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(eventTypesList))
-	for _, eventType := range eventTypesList {
-		eventTypesMap[eventType] = true
-	}
 	return &Fetcher{
-		cfClientConfig: cfClientConfig,
-		AppEventChan:   make(chan *AppEvent, chanCapacity),
-		ErrorChan:      make(chan error, chanCapacity),
-		watchedApps:    make(map[string]chan cfclient.App),
-		eventTypes:     eventTypesMap,
+		config:       config,
+		appEventChan: appEventChan,
+		errorChan:    errorChan,
+		watchedApps:  make(map[string]chan cfclient.App),
 	}
 }
 
@@ -56,7 +61,7 @@ func (m *Fetcher) RefreshAuthToken() (token string, authError error) {
 	return token, nil
 }
 
-func (m *Fetcher) Run(updateFrequency int64) error {
+func (m *Fetcher) Run() error {
 	for {
 		err := m.authenticate()
 		if err != nil {
@@ -72,13 +77,13 @@ func (m *Fetcher) Run(updateFrequency int64) error {
 				return err
 			}
 
-			time.Sleep(time.Duration(updateFrequency) * time.Second)
+			time.Sleep(m.config.UpdateFrequency)
 		}
 	}
 }
 
 func (m *Fetcher) authenticate() (err error) {
-	client, err := cfclient.NewClient(m.cfClientConfig)
+	client, err := cfclient.NewClient(m.config.CFClientConfig)
 	if err != nil {
 		return err
 	}
@@ -90,7 +95,7 @@ func (m *Fetcher) authenticate() (err error) {
 func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 	appChan := make(chan cfclient.App)
 	go func() {
-		tlsConfig := tls.Config{InsecureSkipVerify: m.cfClientConfig.SkipSslValidation}
+		tlsConfig := tls.Config{InsecureSkipVerify: m.config.CFClientConfig.SkipSslValidation}
 		conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tlsConfig, nil)
 		conn.RefreshTokenFrom(m)
 		defer func() {
@@ -101,9 +106,15 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 
 		authToken, err := m.cfClient.GetToken()
 		if err != nil {
-			m.ErrorChan <- err
+			m.errorChan <- err
 			return
 		}
+
+		eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(m.config.EventTypes))
+		for _, eventType := range m.config.EventTypes {
+			eventTypesMap[eventType] = true
+		}
+
 		msgs, errs := conn.Stream(app.Guid, authToken)
 		for {
 			select {
@@ -113,8 +124,8 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 				}
 				stream := AppEvent{Envelope: message, App: app}
 
-				if _, ok := m.eventTypes[*message.EventType]; ok {
-					m.AppEventChan <- &stream
+				if _, ok := eventTypesMap[*message.EventType]; ok {
+					m.appEventChan <- &stream
 				}
 			case err, ok := <-errs:
 				if !ok {
@@ -124,7 +135,7 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 				if err == nil {
 					continue
 				}
-				m.ErrorChan <- err
+				m.errorChan <- err
 			case updatedApp, ok := <-appChan:
 				if !ok {
 					appChan = nil

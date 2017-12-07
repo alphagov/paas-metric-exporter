@@ -1,15 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"time"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
+	"github.com/alphagov/paas-cf-apps-statsd/app"
 	"github.com/alphagov/paas-cf-apps-statsd/metrics"
 	"github.com/alphagov/paas-cf-apps-statsd/processors"
+	"github.com/alphagov/paas-cf-apps-statsd/statsd"
 	"github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
-	"github.com/quipo/statsd"
+	quipo_statsd "github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -28,70 +29,30 @@ var (
 func main() {
 	kingpin.Parse()
 
-	cfClientConfig := &cfclient.Config{
-		ApiAddress:        *apiEndpoint,
-		SkipSslValidation: *skipSSLValidation,
-		Username:          *username,
-		Password:          *password,
+	config := &app.Config{
+		CFClientConfig: &cfclient.Config{
+			ApiAddress:        *apiEndpoint,
+			SkipSslValidation: *skipSSLValidation,
+			Username:          *username,
+			Password:          *password,
+		},
+		CFAppUpdateFrequency: time.Duration(*updateFrequency) * time.Second,
 	}
-	eventTypes := []sonde_events.Envelope_EventType{
-		sonde_events.Envelope_ContainerMetric,
-		sonde_events.Envelope_LogMessage,
-	}
-	eventFetcher := events.NewFetcher(cfClientConfig, eventTypes, 0)
-
-	go func() {
-		for err := range eventFetcher.ErrorChan {
-			fmt.Fprintf(os.Stderr, "%v\n", err.Error())
-		}
-	}()
-
-	go func() {
-		for {
-			err := eventFetcher.Run(*updateFrequency)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(-1)
-			}
-		}
-	}()
-
-	sender := statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
-	sender.CreateSocket()
-
-	sendMetrics(eventFetcher.AppEventChan, sender)
-}
-
-func sendMetrics(msgChan chan (*events.AppEvent), sender *statsd.StatsdClient) {
-	var processedMetrics []metrics.Metric
-	var proc_err error
 
 	processors := map[sonde_events.Envelope_EventType]processors.Processor{
 		sonde_events.Envelope_ContainerMetric: processors.NewContainerMetricProcessor(*metricTemplate),
 		sonde_events.Envelope_LogMessage:      processors.NewLogMessageProcessor(*metricTemplate),
 	}
 
-	for appEvent := range msgChan {
-		processor, ok := processors[appEvent.Envelope.GetEventType()]
-		if !ok {
-			continue
-		}
-		processedMetrics, proc_err = processor.Process(appEvent)
-
-		if proc_err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", proc_err.Error())
-		} else {
-			for _, metric := range processedMetrics {
-				if *debug {
-					fmt.Println(metric)
-				} else {
-					err := metric.Send(sender)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "%v\n", err)
-					}
-				}
-			}
-		}
-		processedMetrics = nil
+	var sender metrics.StatsdClient
+	if !*debug {
+		statsdSender := quipo_statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
+		statsdSender.CreateSocket()
+		sender = statsdSender
+	} else {
+		sender = statsd.DebugClient{}
 	}
+
+	app := app.NewApplication(config, processors, sender, os.Stdout)
+	app.Run()
 }
