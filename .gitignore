@@ -1,2 +1,3 @@
 bin/*
 graphite-nozzle
+paas-cf-apps-statsd

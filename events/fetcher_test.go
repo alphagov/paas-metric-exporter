@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
+	sonde_events "github.com/cloudfoundry/sonde-go/events"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/gomega/ghttp"
 	"golang.org/x/oauth2"
@@ -67,16 +68,16 @@ var _ = Describe("Fetcher", func() {
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		fetcher = &Fetcher{
-			cfClientConfig: &cfclient.Config{
-				ApiAddress: apiServer.URL(),
-				Username:   "user",
-				Password:   "pass",
-			},
-			AppEventChan: make(chan *AppEvent, 10),
-			ErrorChan:    make(chan error, 10),
-			watchedApps:  make(map[string]chan cfclient.App),
+		cfClientConfig := &cfclient.Config{
+			ApiAddress: apiServer.URL(),
+			Username:   "user",
+			Password:   "pass",
 		}
+		eventTypes := []sonde_events.Envelope_EventType{
+			sonde_events.Envelope_ContainerMetric,
+			sonde_events.Envelope_LogMessage,
+		}
+		fetcher = NewFetcher(cfClientConfig, eventTypes, 10)
 		fetcher.authenticate()
 	})
 

@@ -34,7 +34,11 @@ func main() {
 		Username:          *username,
 		Password:          *password,
 	}
-	eventFetcher := events.NewFetcher(cfClientConfig)
+	eventTypes := []sonde_events.Envelope_EventType{
+		sonde_events.Envelope_ContainerMetric,
+		sonde_events.Envelope_LogMessage,
+	}
+	eventFetcher := events.NewFetcher(cfClientConfig, eventTypes, 0)
 
 	go func() {
 		for err := range eventFetcher.ErrorChan {

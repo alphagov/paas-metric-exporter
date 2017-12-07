@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
-	"github.com/cloudfoundry/sonde-go/events"
+	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 
 type Fetcher struct {
@@ -18,15 +18,25 @@ type Fetcher struct {
 	AppEventChan   chan *AppEvent
 	ErrorChan      chan error
 	watchedApps    map[string]chan cfclient.App
+	eventTypes     map[sonde_events.Envelope_EventType]bool
 	sync.RWMutex
 }
 
-func NewFetcher(cfClientConfig *cfclient.Config) *Fetcher {
+func NewFetcher(
+	cfClientConfig *cfclient.Config,
+	eventTypesList []sonde_events.Envelope_EventType,
+	chanCapacity int,
+) *Fetcher {
+	eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(eventTypesList))
+	for _, eventType := range eventTypesList {
+		eventTypesMap[eventType] = true
+	}
 	return &Fetcher{
 		cfClientConfig: cfClientConfig,
-		AppEventChan:   make(chan *AppEvent),
-		ErrorChan:      make(chan error),
+		AppEventChan:   make(chan *AppEvent, chanCapacity),
+		ErrorChan:      make(chan error, chanCapacity),
 		watchedApps:    make(map[string]chan cfclient.App),
+		eventTypes:     eventTypesMap,
 	}
 }
 
@@ -102,7 +112,8 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 					return
 				}
 				stream := AppEvent{Envelope: message, App: app}
-				if *message.EventType == events.Envelope_ContainerMetric || *message.EventType == events.Envelope_LogMessage {
+
+				if _, ok := m.eventTypes[*message.EventType]; ok {
 					m.AppEventChan <- &stream
 				}
 			case err, ok := <-errs:
