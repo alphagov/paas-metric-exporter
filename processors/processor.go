@@ -8,3 +8,7 @@ import (
 type Processor interface {
 	Process(event *events.AppEvent) ([]metrics.Metric, error)
 }
+
+var _ Processor = &ContainerMetricProcessor{}
+
+var _ Processor = &LogMessageProcessor{}
