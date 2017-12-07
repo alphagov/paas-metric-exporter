@@ -1,9 +1,7 @@
 package app
 
 import (
-	"fmt"
-	"io"
-	"os"
+	"log"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/events"
@@ -28,7 +26,6 @@ type Application struct {
 	appEventChan chan *events.AppEvent
 	errorChan    chan error
 	exitChan     chan bool
-	logger       io.Writer
 }
 
 // NewApplication creates a new application instance
@@ -36,7 +33,6 @@ func NewApplication(
 	config *Config,
 	processors map[sonde_events.Envelope_EventType]processors.Processor,
 	sender metrics.StatsdClient,
-	logger io.Writer,
 ) *Application {
 	eventTypes := make([]sonde_events.Envelope_EventType, 0, len(processors))
 	for eventType := range processors {
@@ -59,13 +55,12 @@ func NewApplication(
 		appEventChan: appEventChan,
 		errorChan:    errorChan,
 		exitChan:     make(chan bool),
-		logger:       logger,
 	}
 }
 
 // Run starts the application
 func (a *Application) Run() {
-	fmt.Fprintln(a.logger, "Starting")
+	log.Println("Starting")
 	go a.runEventFetcher()
 
 	for {
@@ -78,17 +73,17 @@ func (a *Application) Run() {
 
 			processedMetrics, procErr := processor.Process(appEvent)
 			if procErr != nil {
-				fmt.Fprintf(a.logger, "processing metrics failed: %v\n", procErr)
+				log.Printf("processing metrics failed: %v\n", procErr)
 				continue
 			}
 
 			for _, metric := range processedMetrics {
 				if err := metric.Send(a.sender); err != nil {
-					fmt.Fprintf(a.logger, "sending metrics failed: %v\n", err)
+					log.Printf("sending metrics failed: %v\n", err)
 				}
 			}
 		case err := <-a.errorChan:
-			fmt.Fprintf(a.logger, "fetching events failed: %v\n", err)
+			log.Printf("fetching events failed: %v\n", err)
 		case <-a.exitChan:
 			return
 		}
@@ -103,7 +98,6 @@ func (a *Application) Stop() {
 func (a *Application) runEventFetcher() {
 	err := a.eventFetcher.Run()
 	if err != nil {
-		fmt.Fprintf(a.logger, "fetching events failed: %v\n", err)
-		os.Exit(-1)
+		log.Fatalf("fetching events failed: %v\n", err)
 	}
 }

@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"log"
+	"os"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/events"
@@ -28,6 +30,8 @@ var _ = Describe("App", func() {
 	)
 
 	BeforeEach(func() {
+		log.SetOutput(GinkgoWriter)
+
 		fetcher = &events_mocks.FakeFetcherProcess{}
 		proc1 = &proc_mocks.FakeProcessor{}
 		proc2 = &proc_mocks.FakeProcessor{}
@@ -47,13 +51,14 @@ var _ = Describe("App", func() {
 			appEventChan: appEventChan,
 			errorChan:    errorChan,
 			exitChan:     make(chan bool),
-			logger:       GinkgoWriter,
 		}
 		go app.Run()
 	})
 
 	AfterEach(func() {
 		app.Stop()
+
+		log.SetOutput(os.Stdout)
 	})
 
 	Context("when started", func() {

@@ -2,6 +2,7 @@ package events
 
 import (
 	"crypto/tls"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -72,6 +73,7 @@ func (m *Fetcher) Run() error {
 			err := m.updateApps()
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
+					log.Printf("Authentication error: %v\n", err)
 					break
 				}
 				return err
@@ -116,14 +118,15 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 		}
 
 		msgs, errs := conn.Stream(app.Guid, authToken)
+		log.Printf("Started reading %s events\n", app.Name)
 		for {
 			select {
 			case message, ok := <-msgs:
 				if !ok {
+					log.Printf("Stopped reading %s events\n", app.Name)
 					return
 				}
 				stream := AppEvent{Envelope: message, App: app}
-
 				if _, ok := eventTypesMap[*message.EventType]; ok {
 					m.appEventChan <- &stream
 				}
@@ -171,7 +174,6 @@ func (m *Fetcher) isWatched(guid string) bool {
 }
 
 func (m *Fetcher) updateApps() error {
-
 	m.Lock()
 	defer m.Unlock()
 

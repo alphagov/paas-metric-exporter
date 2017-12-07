@@ -1,6 +1,9 @@
 package events
 
 import (
+	"log"
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -34,6 +37,8 @@ var _ = Describe("Fetcher", func() {
 	)
 
 	BeforeEach(func() {
+		log.SetOutput(GinkgoWriter)
+
 		apiServer = ghttp.NewServer()
 		tcServer = ghttp.NewServer()
 
@@ -93,6 +98,8 @@ var _ = Describe("Fetcher", func() {
 		close(appEventChan)
 		Expect(errorChan).To(BeEmpty())
 		close(errorChan)
+
+		log.SetOutput(os.Stdout)
 	})
 
 	Describe("updateApps", func() {

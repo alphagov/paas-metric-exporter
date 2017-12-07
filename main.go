@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"log"
 	"time"
 
 	"github.com/alphagov/paas-cf-apps-statsd/app"
@@ -29,6 +29,8 @@ var (
 func main() {
 	kingpin.Parse()
 
+	log.SetFlags(0)
+
 	config := &app.Config{
 		CFClientConfig: &cfclient.Config{
 			ApiAddress:        *apiEndpoint,
@@ -53,6 +55,6 @@ func main() {
 		sender = statsd.DebugClient{}
 	}
 
-	app := app.NewApplication(config, processors, sender, os.Stdout)
+	app := app.NewApplication(config, processors, sender)
 	app.Run()
 }
