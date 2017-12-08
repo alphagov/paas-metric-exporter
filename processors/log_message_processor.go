@@ -52,13 +52,13 @@ func (p *LogMessageProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metr
 		return processedMetrics, nil
 	}
 
-	metricsVar := metrics.Vars{}
-	metricsVar.Parse(appEvent)
-	metricsVar.Instance = fmt.Sprintf("%d", logMessagePayload.Index)
-	metricsVar.Metric = "crash"
-	metricName, err := metricsVar.Compose(p.tmpl)
+	vars := metrics.NewVars(appEvent)
+	vars.Metric = "crash"
+	vars.Instance = fmt.Sprintf("%d", logMessagePayload.Index)
+	metricStat, err := vars.RenderTemplate(p.tmpl)
 	if err == nil {
-		processedMetrics = append(processedMetrics, *metrics.NewCounterMetric(metricName, 1))
+		metric := metrics.NewCounterMetric(metricStat, 1)
+		processedMetrics = append(processedMetrics, *metric)
 	}
 
 	return processedMetrics, err
