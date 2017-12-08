@@ -19,8 +19,7 @@ The following metrics will be exported for every application instance.
 
 ## Getting Started
 
-Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#setting-up-the-metrics-exporter-app) for instructions on how to set up the metrics exporter app. Information on the configuration options are in the following table.
-
+Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#metrics) for instructions on how to set up the metrics exporter app. Information on the configuration options are in the following table.
 
 |Configuration Option|Application Flag|Environment Variable|Notes|
 |:---|:---|:---|:---|
