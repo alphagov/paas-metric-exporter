@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
-	"github.com/cloudfoundry/sonde-go/events"
+	"github.com/alphagov/paas-cf-apps-statsd/events"
 )
 
 // Vars will contain the variables the tenant could use to compose their
@@ -22,14 +21,21 @@ type Vars struct {
 	Space        string
 }
 
-type Stream struct {
-	Msg  *events.Envelope
-	App  cfclient.App
-	Tmpl string
+func NewVars(appEvent *events.AppEvent) *Vars {
+	return &Vars{
+		App:          appEvent.App.Name,
+		GUID:         appEvent.App.Guid,
+		CellId:       appEvent.Envelope.GetIndex(),
+		Instance:     "",
+		Job:          appEvent.Envelope.GetJob(),
+		Metric:       "",
+		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+		Space:        appEvent.App.SpaceData.Entity.Name,
+	}
 }
 
 // Compose the new metric from all given data.
-func (mv *Vars) Compose(providedTemplate string) (string, error) {
+func (v *Vars) RenderTemplate(providedTemplate string) (string, error) {
 	var metric bytes.Buffer
 	tmpl, err := template.New("metric").Parse(providedTemplate)
 
@@ -37,21 +43,10 @@ func (mv *Vars) Compose(providedTemplate string) (string, error) {
 		return "", err
 	}
 
-	err = tmpl.Execute(&metric, mv)
+	err = tmpl.Execute(&metric, v)
 	if err != nil {
 		return "", err
 	}
 
 	return metric.String(), nil
-}
-
-func (mv *Vars) Parse(stream *Stream) {
-	mv.App = stream.App.Name
-	mv.GUID = stream.App.Guid
-	mv.CellId = stream.Msg.GetIndex()
-	mv.Instance = ""
-	mv.Job = stream.Msg.GetJob()
-	mv.Metric = ""
-	mv.Organisation = stream.App.SpaceData.Entity.OrgData.Entity.Name
-	mv.Space = stream.App.SpaceData.Entity.Name
 }

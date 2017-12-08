@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+//go:generate counterfeiter -o mocks/statsd_client.go . StatsdClient
 type StatsdClient interface {
 	Gauge(stat string, value int64) error
 	FGauge(stat string, value float64) error
@@ -12,6 +13,7 @@ type StatsdClient interface {
 	PrecisionTiming(stat string, delta time.Duration) error
 }
 
+//go:generate counterfeiter -o mocks/metric.go . Metric
 type Metric interface {
 	Send(StatsdClient) error
 }
