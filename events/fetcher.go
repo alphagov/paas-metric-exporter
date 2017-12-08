@@ -2,6 +2,7 @@ package events
 
 import (
 	"crypto/tls"
+	"log"
 	"net/url"
 	"strings"
 	"sync"
@@ -9,24 +10,39 @@ import (
 
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
-	"github.com/cloudfoundry/sonde-go/events"
+	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 
+//go:generate counterfeiter -o mocks/fetcher_process.go . FetcherProcess
+type FetcherProcess interface {
+	Run() error
+}
+
+type FetcherConfig struct {
+	CFClientConfig  *cfclient.Config
+	EventTypes      []sonde_events.Envelope_EventType
+	UpdateFrequency time.Duration
+}
+
 type Fetcher struct {
-	cfClient       *cfclient.Client
-	cfClientConfig *cfclient.Config
-	MsgChan        chan *AppEvent
-	ErrorChan      chan error
-	watchedApps    map[string]chan cfclient.App
+	config       *FetcherConfig
+	cfClient     *cfclient.Client
+	appEventChan chan *AppEvent
+	errorChan    chan error
+	watchedApps  map[string]chan cfclient.App
 	sync.RWMutex
 }
 
-func NewFetcher(cfClientConfig *cfclient.Config) *Fetcher {
+func NewFetcher(
+	config *FetcherConfig,
+	appEventChan chan *AppEvent,
+	errorChan chan error,
+) *Fetcher {
 	return &Fetcher{
-		cfClientConfig: cfClientConfig,
-		MsgChan:        make(chan *AppEvent),
-		ErrorChan:      make(chan error),
-		watchedApps:    make(map[string]chan cfclient.App),
+		config:       config,
+		appEventChan: appEventChan,
+		errorChan:    errorChan,
+		watchedApps:  make(map[string]chan cfclient.App),
 	}
 }
 
@@ -46,7 +62,7 @@ func (m *Fetcher) RefreshAuthToken() (token string, authError error) {
 	return token, nil
 }
 
-func (m *Fetcher) Run(updateFrequency int64) error {
+func (m *Fetcher) Run() error {
 	for {
 		err := m.authenticate()
 		if err != nil {
@@ -57,18 +73,19 @@ func (m *Fetcher) Run(updateFrequency int64) error {
 			err := m.updateApps()
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
+					log.Printf("Authentication error: %v\n", err)
 					break
 				}
 				return err
 			}
 
-			time.Sleep(time.Duration(updateFrequency) * time.Second)
+			time.Sleep(m.config.UpdateFrequency)
 		}
 	}
 }
 
 func (m *Fetcher) authenticate() (err error) {
-	client, err := cfclient.NewClient(m.cfClientConfig)
+	client, err := cfclient.NewClient(m.config.CFClientConfig)
 	if err != nil {
 		return err
 	}
@@ -80,7 +97,7 @@ func (m *Fetcher) authenticate() (err error) {
 func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 	appChan := make(chan cfclient.App)
 	go func() {
-		tlsConfig := tls.Config{InsecureSkipVerify: m.cfClientConfig.SkipSslValidation}
+		tlsConfig := tls.Config{InsecureSkipVerify: m.config.CFClientConfig.SkipSslValidation}
 		conn := consumer.New(m.cfClient.Endpoint.DopplerEndpoint, &tlsConfig, nil)
 		conn.RefreshTokenFrom(m)
 		defer func() {
@@ -91,19 +108,27 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 
 		authToken, err := m.cfClient.GetToken()
 		if err != nil {
-			m.ErrorChan <- err
+			m.errorChan <- err
 			return
 		}
+
+		eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(m.config.EventTypes))
+		for _, eventType := range m.config.EventTypes {
+			eventTypesMap[eventType] = true
+		}
+
 		msgs, errs := conn.Stream(app.Guid, authToken)
+		log.Printf("Started reading %s events\n", app.Name)
 		for {
 			select {
 			case message, ok := <-msgs:
 				if !ok {
+					log.Printf("Stopped reading %s events\n", app.Name)
 					return
 				}
-				stream := AppEvent{Msg: message, App: app}
-				if *message.EventType == events.Envelope_ContainerMetric {
-					m.MsgChan <- &stream
+				stream := AppEvent{Envelope: message, App: app}
+				if _, ok := eventTypesMap[*message.EventType]; ok {
+					m.appEventChan <- &stream
 				}
 			case err, ok := <-errs:
 				if !ok {
@@ -113,7 +138,7 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 				if err == nil {
 					continue
 				}
-				m.ErrorChan <- err
+				m.errorChan <- err
 			case updatedApp, ok := <-appChan:
 				if !ok {
 					appChan = nil
@@ -149,7 +174,6 @@ func (m *Fetcher) isWatched(guid string) bool {
 }
 
 func (m *Fetcher) updateApps() error {
-
 	m.Lock()
 	defer m.Unlock()
 

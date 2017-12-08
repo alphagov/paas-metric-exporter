@@ -1,6 +1,9 @@
 package events
 
 import (
+	"log"
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -10,6 +13,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
+	sonde_events "github.com/cloudfoundry/sonde-go/events"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/gomega/ghttp"
 	"golang.org/x/oauth2"
@@ -22,15 +26,19 @@ type TokenErr struct {
 
 var _ = Describe("Fetcher", func() {
 	var (
-		apiServer *ghttp.Server
-		tcServer  *ghttp.Server
-		tcHandler mockWebsocketHandler
-		endpoint  cfclient.Endpoint
-		token     oauth2.Token
-		fetcher   *Fetcher
+		apiServer    *ghttp.Server
+		tcServer     *ghttp.Server
+		tcHandler    mockWebsocketHandler
+		endpoint     cfclient.Endpoint
+		token        oauth2.Token
+		fetcher      *Fetcher
+		appEventChan chan *AppEvent
+		errorChan    chan error
 	)
 
 	BeforeEach(func() {
+		log.SetOutput(GinkgoWriter)
+
 		apiServer = ghttp.NewServer()
 		tcServer = ghttp.NewServer()
 
@@ -67,24 +75,31 @@ var _ = Describe("Fetcher", func() {
 		}
 		tcServer.RouteToHandler("GET", regexp.MustCompile(`/.*`), tcHandler.ServeHTTP)
 
-		fetcher = &Fetcher{
-			cfClientConfig: &cfclient.Config{
+		config := &FetcherConfig{
+			CFClientConfig: &cfclient.Config{
 				ApiAddress: apiServer.URL(),
 				Username:   "user",
 				Password:   "pass",
 			},
-			MsgChan:     make(chan *AppEvent, 10),
-			ErrorChan:   make(chan error, 10),
-			watchedApps: make(map[string]chan cfclient.App),
+			EventTypes: []sonde_events.Envelope_EventType{
+				sonde_events.Envelope_ContainerMetric,
+				sonde_events.Envelope_LogMessage,
+			},
+			UpdateFrequency: 1 * time.Second,
 		}
+		appEventChan = make(chan *AppEvent, 10)
+		errorChan = make(chan error, 10)
+		fetcher = NewFetcher(config, appEventChan, errorChan)
 		fetcher.authenticate()
 	})
 
 	AfterEach(func() {
-		Expect(fetcher.MsgChan).To(BeEmpty())
-		close(fetcher.MsgChan)
-		Expect(fetcher.ErrorChan).To(BeEmpty())
-		close(fetcher.ErrorChan)
+		Expect(appEventChan).To(BeEmpty())
+		close(appEventChan)
+		Expect(errorChan).To(BeEmpty())
+		close(errorChan)
+
+		log.SetOutput(os.Stdout)
 	})
 
 	Describe("updateApps", func() {
@@ -138,13 +153,13 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 
 				var eventBeforeRename *AppEvent
-				Eventually(fetcher.MsgChan).Should(Receive(&eventBeforeRename))
+				Eventually(appEventChan).Should(Receive(&eventBeforeRename))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
 					tcHandler.WriteMessage(appsBeforeRename[0].Guid)
 					var eventAfterRename *AppEvent
-					Eventually(fetcher.MsgChan).Should(Receive(&eventAfterRename))
+					Eventually(appEventChan).Should(Receive(&eventAfterRename))
 					return eventAfterRename.App.Name
 				}
 
@@ -167,7 +182,7 @@ var _ = Describe("Fetcher", func() {
 
 			It("should not start any watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Consistently(fetcher.MsgChan).Should(BeEmpty())
+				Consistently(appEventChan).Should(BeEmpty())
 				Expect(tcServer.ReceivedRequests()).To(HaveLen(0))
 			})
 		})
@@ -228,7 +243,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -321,7 +336,7 @@ var _ = Describe("Fetcher", func() {
 			It("should stop two old watchers and start two new watchers", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -337,7 +352,7 @@ var _ = Describe("Fetcher", func() {
 
 				newApps := apps[1:]
 				for _, app := range newApps {
-					Eventually(fetcher.MsgChan).Should(Receive())
+					Eventually(appEventChan).Should(Receive())
 					guid := app.Guid
 					inMap := func() bool {
 						return fetcher.isWatched(guid)
@@ -413,9 +428,7 @@ var _ = Describe("Fetcher", func() {
 			})
 
 			It("should try to refresh refreshToken", func() {
-				var updateFrequency int64 = 1
-
-				err := fetcher.Run(updateFrequency)
+				err := fetcher.Run()
 				Eventually(err, 5*time.Second).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(`"error":"invalid_token"`))
 			})
