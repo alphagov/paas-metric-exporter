@@ -13,3 +13,7 @@ unit: $(GOPATH)/bin/ginkgo ## Run unit tests
 
 $(GOPATH)/bin/ginkgo:
 	cd vendor/github.com/onsi/ginkgo/ginkgo && go install .
+
+.PHONY: generate
+generate: ## Generate the test mocks
+	go generate ./...

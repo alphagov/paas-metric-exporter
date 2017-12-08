@@ -35,7 +35,7 @@ You can use following template fields in your metric template:
 * `{{.Job}}` - BOSH job name e.g `cell`
 * `{{.Metric}}` - cpu, memoryBytes or diskBytes
 * `{{.Organisation}}` - a CF organisation that the app belongs to
-* `{{.Space}}` - CF space used to deploy application 
+* `{{.Space}}` - CF space used to deploy application
 
 ## Testing
 
@@ -46,4 +46,18 @@ go get github.com/onsi/ginkgo/ginkgo
 go get github.com/onsi/gomega
 ```
 
-Then run `ginkgo -r` from root of this repository.
+Then run `make test` from the root of this repository.
+
+### Regenerating mocks
+
+We generate some test mocks using counterfeiter. The mocks need to be regenerated if the mocked interfaces are changed.
+
+To install counterfeiter please run first:
+```
+go get github.com/maxbrunsfeld/counterfeiter
+```
+
+To generate the mocks:
+```
+make generate
+```
