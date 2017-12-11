@@ -1,4 +1,4 @@
-# paas-cf-apps-statsd
+# paas-metric-exporter
 
 This application consumes container metrics off the Cloud Foundry Doppler daemon, processes them based on the provided metrics template, and then sends them to a StatsD endpoint.
 
@@ -43,7 +43,7 @@ You can use following template fields in your metric template:
 * `{{.Index}}` - BOSH job index e.g. `0`
 * `{{.Instance}}` - Application instance
 * `{{.Job}}` - BOSH job name e.g `cell`
-* `{{.Metric}}` - see the list of available metrics
+* `{{.Metric}}` - a metric from the list of available metrics
 * `{{.Organisation}}` - a CF organisation that the app belongs to
 * `{{.Space}}` - CF space used to deploy application
 
