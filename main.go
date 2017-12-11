@@ -44,6 +44,7 @@ func main() {
 	processors := map[sonde_events.Envelope_EventType]processors.Processor{
 		sonde_events.Envelope_ContainerMetric: processors.NewContainerMetricProcessor(*metricTemplate),
 		sonde_events.Envelope_LogMessage:      processors.NewLogMessageProcessor(*metricTemplate),
+		sonde_events.Envelope_HttpStartStop:   processors.NewHttpStartStopProcessor(*metricTemplate),
 	}
 
 	var sender metrics.StatsdClient

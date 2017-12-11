@@ -13,3 +13,5 @@ type Processor interface {
 var _ Processor = &ContainerMetricProcessor{}
 
 var _ Processor = &LogMessageProcessor{}
+
+var _ Processor = &HttpStartStopProcessor{}
