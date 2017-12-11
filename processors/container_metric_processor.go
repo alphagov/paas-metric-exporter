@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-metric-exporter/events"
+	"github.com/alphagov/paas-metric-exporter/metrics"
 )
 
 type ContainerMetricProcessor struct {

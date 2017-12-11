@@ -1,8 +1,8 @@
 package metrics_test
 
 import (
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	. "github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-metric-exporter/events"
+	. "github.com/alphagov/paas-metric-exporter/metrics"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

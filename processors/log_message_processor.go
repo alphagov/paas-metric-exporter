@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-metric-exporter/events"
+	"github.com/alphagov/paas-metric-exporter/metrics"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 

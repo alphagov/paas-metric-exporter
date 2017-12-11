@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
+	"github.com/alphagov/paas-metric-exporter/events"
 )
 
 // Vars will contain the variables the tenant could use to compose their

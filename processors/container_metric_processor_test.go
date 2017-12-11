@@ -1,8 +1,8 @@
 package processors_test
 
 import (
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	. "github.com/alphagov/paas-cf-apps-statsd/processors"
+	"github.com/alphagov/paas-metric-exporter/events"
+	. "github.com/alphagov/paas-metric-exporter/processors"
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 

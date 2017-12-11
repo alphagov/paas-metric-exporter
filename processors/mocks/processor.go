@@ -4,9 +4,9 @@ package mocks
 import (
 	"sync"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
-	"github.com/alphagov/paas-cf-apps-statsd/processors"
+	"github.com/alphagov/paas-metric-exporter/events"
+	"github.com/alphagov/paas-metric-exporter/metrics"
+	"github.com/alphagov/paas-metric-exporter/processors"
 )
 
 type FakeProcessor struct {

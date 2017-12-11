@@ -1,8 +1,8 @@
 package processors
 
 import (
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-metric-exporter/events"
+	"github.com/alphagov/paas-metric-exporter/metrics"
 )
 
 //go:generate counterfeiter -o mocks/processor.go . Processor
