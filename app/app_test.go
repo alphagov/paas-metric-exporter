@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
-	events_mocks "github.com/alphagov/paas-cf-apps-statsd/events/mocks"
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
-	metrics_mocks "github.com/alphagov/paas-cf-apps-statsd/metrics/mocks"
-	"github.com/alphagov/paas-cf-apps-statsd/processors"
-	proc_mocks "github.com/alphagov/paas-cf-apps-statsd/processors/mocks"
+	"github.com/alphagov/paas-metric-exporter/events"
+	events_mocks "github.com/alphagov/paas-metric-exporter/events/mocks"
+	"github.com/alphagov/paas-metric-exporter/metrics"
+	metrics_mocks "github.com/alphagov/paas-metric-exporter/metrics/mocks"
+	"github.com/alphagov/paas-metric-exporter/processors"
+	proc_mocks "github.com/alphagov/paas-metric-exporter/processors/mocks"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 
 	. "github.com/onsi/ginkgo"

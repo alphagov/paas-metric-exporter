@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	"github.com/alphagov/paas-cf-apps-statsd/metrics"
+	"github.com/alphagov/paas-metric-exporter/metrics"
 )
 
 type FakeMetric struct {

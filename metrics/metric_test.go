@@ -3,7 +3,7 @@ package metrics_test
 import (
 	"errors"
 
-	. "github.com/alphagov/paas-cf-apps-statsd/metrics"
+	. "github.com/alphagov/paas-metric-exporter/metrics"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

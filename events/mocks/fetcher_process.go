@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	"github.com/alphagov/paas-cf-apps-statsd/events"
+	"github.com/alphagov/paas-metric-exporter/events"
 )
 
 type FakeFetcherProcess struct {
