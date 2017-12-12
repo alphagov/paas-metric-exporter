@@ -12,10 +12,22 @@ The following metrics will be exported for every application instance.
 
 |Name|Type|Description|
 |:---|:---|:---|
-|cpu|gauge|CPU utilisation|
-|diskBytes|gauge|Disk usage in bytes|
-|memoryBytes|gauge|Memory usage in bytes|
-|crash|counter|Increased by one if the application crashed for any reason.|
+|`cpu`|gauge|CPU utilisation|
+|`diskBytes`|gauge|Disk usage in bytes|
+|`memoryBytes`|gauge|Memory usage in bytes|
+|`crash`|counter|Increased by one if the application crashed for any reason|
+|`requests.1xx`|counter|Number of requests processed with 1xx status|
+|`requests.2xx`|counter|Number of requests processed with 2xx status|
+|`requests.3xx`|counter|Number of requests processed with 3xx status|
+|`requests.4xx`|counter|Number of requests processed with 4xx status|
+|`requests.5xx`|counter|Number of requests processed with 5xx status|
+|`requests.other`|counter|Number of requests processed with unknown status|
+|`responseTime.1xx`|timer|Timing of processed requests with 1xx status|
+|`responseTime.2xx`|timer|Timing of processed requests with 2xx status|
+|`responseTime.3xx`|timer|Timing of processed requests with 3xx status|
+|`responseTime.4xx`|timer|Timing of processed requests with 4xx status|
+|`responseTime.5xx`|timer|Timing of processed requests with 5xx status|
+|`responseTime.other`|timer|Timing of processed requests with unknown status|
 
 ## Getting Started
 
