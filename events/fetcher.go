@@ -158,11 +158,12 @@ func (m *Fetcher) getApps() ([]cfclient.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, app := range apps {
-		if err = updateAppSpaceData(&app); err != nil {
+	for i, _ := range apps {
+		if err = updateAppSpaceData(&apps[i]); err != nil {
 			return nil, err
 		}
 	}
+
 	return apps, nil
 }
 
@@ -181,7 +182,6 @@ func (m *Fetcher) updateApps() error {
 	if err != nil {
 		return err
 	}
-
 	running := map[string]bool{}
 	for _, app := range apps {
 		running[app.Guid] = true
