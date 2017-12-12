@@ -156,7 +156,7 @@ var _ = Describe("App", func() {
 	})
 
 	Context("when the processor fails to process the event", func() {
-		It("should continue to process eventsd", func() {
+		It("should continue to process events", func() {
 			proc1.ProcessReturnsOnCall(0, nil, errors.New("some processing error"))
 			validEventType := sonde_events.Envelope_ContainerMetric
 			event1 := &events.AppEvent{Envelope: &sonde_events.Envelope{EventType: &validEventType}}
