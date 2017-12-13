@@ -6,3 +6,5 @@ applications:
   buildpack: go_buildpack
   health-check-type: none
   no-route: true
+  env:
+    GOPACKAGENAME: github.com/alphagov/paas-metric-exporter
