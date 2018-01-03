@@ -37,7 +37,7 @@ Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#m
 |:---|:---|:---|:---|
 |API endpoint|api-endpoint|API_ENDPOINT||
 |Statsd endpoint|statsd-endpoint|STATSD_ENDPOINT||
-|Statsd prefix|statsd-prefix|STATSD_PREFIX||
+|Statsd prefix|statsd-prefix|STATSD_PREFIX|Namespace prepended to all emitted metric names. The default is `mycf`|
 |Username|username|USERNAME||
 |Password|password|PASSWORD||
 |Skip SSL Validation|skip-ssl-validation|SKIP_SSL_VALIDATION||
