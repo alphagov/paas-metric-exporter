@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/alphagov/paas-metric-exporter/app"
@@ -26,8 +27,18 @@ var (
 	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{.Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
 )
 
+func normalizePrefix(prefix string) string {
+	prefix = strings.TrimRight(strings.TrimSpace(prefix), ".")
+	if prefix == "" {
+		return prefix
+	}
+	return prefix + "."
+}
+
 func main() {
 	kingpin.Parse()
+
+	*statsdPrefix = normalizePrefix(*statsdPrefix)
 
 	log.SetFlags(0)
 
@@ -53,7 +64,7 @@ func main() {
 		statsdSender.CreateSocket()
 		sender = statsdSender
 	} else {
-		sender = statsd.DebugClient{}
+		sender = statsd.DebugClient{Prefix: *statsdPrefix}
 	}
 
 	app := app.NewApplication(config, processors, sender)
