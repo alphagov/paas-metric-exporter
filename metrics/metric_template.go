@@ -3,50 +3,37 @@ package metrics
 import (
 	"bytes"
 	"text/template"
-
-	"github.com/alphagov/paas-metric-exporter/events"
 )
 
-// Vars will contain the variables the tenant could use to compose their
-// custom metric namespace.
-type Vars struct {
-	App          string
-	CellId       string
-	GUID         string
-	Index        string
-	Instance     string
-	Job          string
-	Metric       string // cpu, memory, disk
-	Organisation string
-	Space        string
-}
+// func NewVars(appEvent *events.AppEvent) *Vars {
+// 	return &Vars{
+// 		App:          appEvent.App.Name,
+// 		GUID:         appEvent.App.Guid,
+// 		CellId:       appEvent.Envelope.GetIndex(),
+// 		Instance:     "",
+// 		Job:          appEvent.Envelope.GetJob(),
+// 		Metric:       "",
+// 		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+// 		Space:        appEvent.App.SpaceData.Entity.Name,
+// 	}
+// }
 
-func NewVars(appEvent *events.AppEvent) *Vars {
-	return &Vars{
-		App:          appEvent.App.Name,
-		GUID:         appEvent.App.Guid,
-		CellId:       appEvent.Envelope.GetIndex(),
-		Instance:     "",
-		Job:          appEvent.Envelope.GetJob(),
-		Metric:       "",
-		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
-		Space:        appEvent.App.SpaceData.Entity.Name,
+func render(t string, data interface{}) string {
+	if t == "" {
+		t = "{{.Metric}}"
 	}
-}
 
-// Compose the new metric from all given data.
-func (v *Vars) RenderTemplate(providedTemplate string) (string, error) {
 	var metric bytes.Buffer
-	tmpl, err := template.New("metric").Parse(providedTemplate)
+	tmpl, err := template.New("metric").Parse(t)
 
 	if err != nil {
-		return "", err
+		panic(err) // FIXME
 	}
 
-	err = tmpl.Execute(&metric, v)
+	err = tmpl.Execute(&metric, data)
 	if err != nil {
-		return "", err
+		panic(err) // FIXME
 	}
 
-	return metric.String(), nil
+	return metric.String()
 }

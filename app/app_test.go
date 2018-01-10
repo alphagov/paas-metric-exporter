@@ -27,9 +27,10 @@ var _ = Describe("App", func() {
 		app          *Application
 		appEventChan chan *events.AppEvent
 		errorChan    chan error
+		whitelist    []string
 	)
 
-	BeforeEach(func() {
+	JustBeforeEach(func() {
 		log.SetOutput(GinkgoWriter)
 
 		fetcher = &events_mocks.FakeFetcherProcess{}
@@ -39,19 +40,21 @@ var _ = Describe("App", func() {
 			sonde_events.Envelope_ContainerMetric: proc1,
 			sonde_events.Envelope_LogMessage:      proc2,
 		}
+		statsdClient = &metrics_mocks.FakeStatsdClient{}
 		appEventChan = make(chan *events.AppEvent, 10)
 		errorChan = make(chan error)
-		app = &Application{
-			config: &Config{
+		app = NewApplication(
+			&Config{
 				CFAppUpdateFrequency: time.Second,
+				Whitelist:            whitelist,
 			},
-			processors:   processors,
-			eventFetcher: fetcher,
-			sender:       statsdClient,
-			appEventChan: appEventChan,
-			errorChan:    errorChan,
-			exitChan:     make(chan bool),
-		}
+			processors,
+			statsdClient,
+		)
+		app.eventFetcher = fetcher
+		app.appEventChan = appEventChan
+		app.errorChan = errorChan
+
 		go app.Run()
 	})
 
@@ -92,8 +95,8 @@ var _ = Describe("App", func() {
 		}, 3)
 
 		It("the processed metrics should be sent to the statsd client", func() {
-			metric1 := &metrics_mocks.FakeMetric{}
-			metric2 := &metrics_mocks.FakeMetric{}
+			metric1 := &metrics.GaugeMetric{Metric: "metric1", Value: 1}
+			metric2 := &metrics.GaugeMetric{Metric: "metric2", Value: 2}
 			proc1.ProcessReturnsOnCall(0, []metrics.Metric{metric1, metric2}, nil)
 
 			eventType := sonde_events.Envelope_ContainerMetric
@@ -105,16 +108,16 @@ var _ = Describe("App", func() {
 			appEventChan <- event
 
 			Eventually(func() int {
-				return metric1.SendCallCount()
-			}).Should(Equal(1))
-			Eventually(func() int {
-				return metric2.SendCallCount()
-			}).Should(Equal(1))
+				return statsdClient.GaugeCallCount()
+			}).Should(Equal(2))
 
-			actualStatsdClient := metric1.SendArgsForCall(0)
-			Expect(actualStatsdClient).To(Equal(statsdClient))
-			actualStatsdClient = metric2.SendArgsForCall(0)
-			Expect(actualStatsdClient).To(Equal(statsdClient))
+			statName0, statValue0 := statsdClient.GaugeArgsForCall(0)
+			Expect(statName0).To(Equal("metric1"))
+			Expect(statValue0).To(Equal(int64(1)))
+
+			statName1, statValue1 := statsdClient.GaugeArgsForCall(1)
+			Expect(statName1).To(Equal("metric2"))
+			Expect(statValue1).To(Equal(int64(2)))
 		}, 3)
 
 		It("should handle metrics sending errors", func() {
@@ -182,5 +185,39 @@ var _ = Describe("App", func() {
 				return proc1.ProcessCallCount()
 			}).Should(Equal(1))
 		})
+	})
+
+	Context("with whitelist", func() {
+		BeforeEach(func() {
+			whitelist = []string{
+				"whitelisted",
+			}
+		})
+
+		It("should not emmit all of the gauge metrics", func() {
+			metric1 := &metrics.GaugeMetric{Metric: "blacklisted.metric", Value: 1}
+			metric2 := &metrics.GaugeMetric{Metric: "whitelisted.metric", Value: 2}
+			proc1.ProcessReturnsOnCall(0, []metrics.Metric{metric1, metric2}, nil)
+
+			eventType := sonde_events.Envelope_ContainerMetric
+			event := &events.AppEvent{
+				Envelope: &sonde_events.Envelope{
+					EventType: &eventType,
+				},
+			}
+			appEventChan <- event
+
+			Eventually(func() int {
+				return statsdClient.GaugeCallCount()
+			}).Should(Equal(1))
+			// YUCK: We don't like the following, but couldn't come up with a better approach.
+			Consistently(func() int {
+				return statsdClient.GaugeCallCount()
+			}).Should(Equal(1))
+
+			statName0, _ := statsdClient.GaugeArgsForCall(0)
+			Expect(statName0).To(Equal("whitelisted.metric"))
+		}, 3)
+
 	})
 })

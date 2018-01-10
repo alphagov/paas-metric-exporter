@@ -31,38 +31,31 @@ func (p *ContainerMetricProcessor) Process(appEvent *events.AppEvent) ([]metrics
 
 func (p *ContainerMetricProcessor) ProcessContainerMetric(metricType string, appEvent *events.AppEvent) (metrics.GaugeMetric, error) {
 	containerMetricEvent := appEvent.Envelope.GetContainerMetric()
-	instanceIndex := strconv.Itoa(int(containerMetricEvent.GetInstanceIndex()))
 
-	var err error
-	var metric metrics.GaugeMetric
-	var metricStat string
-	var value int64
-
-	vars := metrics.NewVars(appEvent)
-	vars.Instance = instanceIndex
+	metric := metrics.GaugeMetric{
+		Instance:     strconv.Itoa(int(containerMetricEvent.GetInstanceIndex())),
+		Template:     p.tmpl,
+		App:          appEvent.App.Name,
+		GUID:         appEvent.App.Guid,
+		CellId:       appEvent.Envelope.GetIndex(),
+		Job:          appEvent.Envelope.GetJob(),
+		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+		Space:        appEvent.App.SpaceData.Entity.Name,
+	}
 
 	switch metricType {
 	case "cpu":
-		vars.Metric = "cpu"
-		metricStat, err = vars.RenderTemplate(p.tmpl)
-		value = int64(containerMetricEvent.GetCpuPercentage())
+		metric.Metric = "cpu"
+		metric.Value = int64(containerMetricEvent.GetCpuPercentage())
 	case "mem":
-		vars.Metric = "memoryBytes"
-		metricStat, err = vars.RenderTemplate(p.tmpl)
-		value = int64(containerMetricEvent.GetMemoryBytes())
+		metric.Metric = "memoryBytes"
+		metric.Value = int64(containerMetricEvent.GetMemoryBytes())
 	case "dsk":
-		vars.Metric = "diskBytes"
-		metricStat, err = vars.RenderTemplate(p.tmpl)
-		value = int64(containerMetricEvent.GetDiskBytes())
+		metric.Metric = "diskBytes"
+		metric.Value = int64(containerMetricEvent.GetDiskBytes())
 	default:
-		err = errors.New("Unsupported metric type.")
+		return metric, errors.New("Unsupported metric type.")
 	}
-
-	if err != nil {
-		return metrics.GaugeMetric{}, err
-	}
-
-	metric = *metrics.NewGaugeMetric(metricStat, value)
 
 	return metric, nil
 }

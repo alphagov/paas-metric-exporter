@@ -66,45 +66,45 @@ var _ = Describe("Metric", func() {
 
 	Describe("#NewCounterMetric", func() {
 		It("creates a new CounterMetric", func() {
-			metric := NewCounterMetric("my.counter.metric", 1)
+			metric := CounterMetric{Metric: "my.counter.metric", Value: 1}
 
-			Expect(metric.Stat).To(Equal("my.counter.metric"))
+			Expect(metric.Name()).To(Equal("my.counter.metric"))
 			Expect(metric.Value).To(Equal(int64(1)))
 		})
 	})
 
 	Describe("#NewGaugeMetric", func() {
 		It("creates a new GaugeMetric", func() {
-			metric := NewGaugeMetric("my.gauge.metric", 20)
+			metric := GaugeMetric{Metric: "my.gauge.metric", Value: 20}
 
-			Expect(metric.Stat).To(Equal("my.gauge.metric"))
+			Expect(metric.Name()).To(Equal("my.gauge.metric"))
 			Expect(metric.Value).To(Equal(int64(20)))
 		})
 	})
 
 	Describe("#NewFGaugeMetric", func() {
 		It("creates a new FGaugeMetric", func() {
-			metric := NewFGaugeMetric("my.fgauge.metric", 20.25)
+			metric := FGaugeMetric{Metric: "my.fgauge.metric", Value: 20.25}
 
-			Expect(metric.Stat).To(Equal("my.fgauge.metric"))
+			Expect(metric.Name()).To(Equal("my.fgauge.metric"))
 			Expect(metric.Value).To(Equal(float64(20.25)))
 		})
 	})
 
 	Describe("#NewTimingMetric", func() {
 		It("creates a new TimingMetric", func() {
-			metric := NewTimingMetric("my.timing.metric", 100)
+			metric := TimingMetric{Metric: "my.timing.metric", Value: 100}
 
-			Expect(metric.Stat).To(Equal("my.timing.metric"))
+			Expect(metric.Name()).To(Equal("my.timing.metric"))
 			Expect(metric.Value).To(Equal(int64(100)))
 		})
 	})
 
 	Describe("#NewPrecisionTimingMetric", func() {
 		It("creates a new PrecisionTimingMetric", func() {
-			metric := NewPrecisionTimingMetric("my.precision.timing.metric", 100*time.Millisecond)
+			metric := PrecisionTimingMetric{Metric: "my.precision.timing.metric", Value: 100 * time.Millisecond}
 
-			Expect(metric.Stat).To(Equal("my.precision.timing.metric"))
+			Expect(metric.Name()).To(Equal("my.precision.timing.metric"))
 			Expect(metric.Value).To(Equal(100 * time.Millisecond))
 		})
 	})
@@ -117,7 +117,7 @@ var _ = Describe("Metric", func() {
 		Context("with a PrecisionTimingMetric", func() {
 			Context("without prefix", func() {
 				It("sends the Metric to StatsD with time.Duration precision", func() {
-					metric := NewPrecisionTimingMetric("http.responsetimes.api_10_244_0_34_xip_io", 50*time.Millisecond)
+					metric := PrecisionTimingMetric{Metric: "http.responsetimes.api_10_244_0_34_xip_io", Value: 50 * time.Millisecond}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.precisionTimingCalled).To(BeTrue())
@@ -128,7 +128,7 @@ var _ = Describe("Metric", func() {
 
 			Context("with prefix", func() {
 				It("sends the Metric to StatsD with time.Duration precision", func() {
-					metric := NewPrecisionTimingMetric("http.responsetimes.api_10_244_0_34_xip_io", 50*time.Millisecond)
+					metric := PrecisionTimingMetric{Metric: "http.responsetimes.api_10_244_0_34_xip_io", Value: 50 * time.Millisecond}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.precisionTimingCalled).To(BeTrue())
@@ -141,7 +141,7 @@ var _ = Describe("Metric", func() {
 		Context("with a CounterMetric", func() {
 			Context("without prefix", func() {
 				It("sends the Metric to StatsD with int64 precision", func() {
-					metric := NewCounterMetric("http.statuscodes.api_10_244_0_34_xip_io.200", 1)
+					metric := CounterMetric{Metric: "http.statuscodes.api_10_244_0_34_xip_io.200", Value: 1}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.incrCalled).To(BeTrue())
@@ -152,7 +152,7 @@ var _ = Describe("Metric", func() {
 
 			Context("with prefix", func() {
 				It("sends the Metric to StatsD with int64 precision", func() {
-					metric := NewCounterMetric("http.statuscodes.api_10_244_0_34_xip_io.200", 1)
+					metric := CounterMetric{Metric: "http.statuscodes.api_10_244_0_34_xip_io.200", Value: 1}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.incrCalled).To(BeTrue())
@@ -165,7 +165,7 @@ var _ = Describe("Metric", func() {
 		Context("with a GaugeMetric", func() {
 			Context("without prefix", func() {
 				It("sends the Metric to StatsD with int64 precision", func() {
-					metric := NewGaugeMetric("router__0.numCPUS", 4)
+					metric := GaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.gaugeCalled).To(BeTrue())
@@ -176,7 +176,7 @@ var _ = Describe("Metric", func() {
 
 			Context("with prefix", func() {
 				It("sends the Metric to StatsD with int64 precision", func() {
-					metric := NewGaugeMetric("router__0.numCPUS", 4)
+					metric := GaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.gaugeCalled).To(BeTrue())
@@ -189,7 +189,7 @@ var _ = Describe("Metric", func() {
 		Context("with an FGaugeMetric", func() {
 			Context("without prefix", func() {
 				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := NewFGaugeMetric("router__0.numCPUS", 4)
+					metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.fGaugeCalled).To(BeTrue())
@@ -200,7 +200,7 @@ var _ = Describe("Metric", func() {
 
 			Context("with prefix", func() {
 				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := NewFGaugeMetric("router__0.numCPUS", 4)
+					metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.fGaugeCalled).To(BeTrue())
@@ -213,7 +213,7 @@ var _ = Describe("Metric", func() {
 		Context("with an TimingMetric", func() {
 			Context("without prefix", func() {
 				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := NewTimingMetric("my.timing.metric", 100)
+					metric := TimingMetric{Metric: "my.timing.metric", Value: 100}
 					metric.Send(fakeStatsdClient)
 
 					Expect(fakeStatsdClient.timingCalled).To(BeTrue())
@@ -225,7 +225,7 @@ var _ = Describe("Metric", func() {
 
 		Context("when the StatsdClient doesn't return an error", func() {
 			It("doesn't return an error", func() {
-				metric := NewGaugeMetric("router__0.numCPUS", 4)
+				metric := GaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 				err := metric.Send(fakeStatsdClient)
 
 				Expect(err).ToNot(HaveOccurred())
@@ -234,7 +234,7 @@ var _ = Describe("Metric", func() {
 
 		Context("when the StatsdClient returns an error", func() {
 			It("returns the error", func() {
-				metric := NewFGaugeMetric("router__0.numCPUS", 4)
+				metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 				err := metric.Send(fakeStatsdClient)
 
 				Expect(err).To(MatchError(errors.New("StatsdClientSendError")))

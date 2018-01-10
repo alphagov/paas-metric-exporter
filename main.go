@@ -25,6 +25,7 @@ var (
 	debug             = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
 	updateFrequency   = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
 	metricTemplate    = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default("{{.Space}}.{{.App}}.{{.Instance}}.{{.Metric}}").OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
+	metricWhitelist   = kingpin.Flag("metric-whitelist", "Comma separated metric name prefixes to enable.").Default("").OverrideDefaultFromEnvar("METRIC_WHITELIST").String()
 )
 
 func normalizePrefix(prefix string) string {
@@ -33,6 +34,17 @@ func normalizePrefix(prefix string) string {
 		return prefix
 	}
 	return prefix + "."
+}
+
+func normalizeWhitelist(csv string) []string {
+	list := strings.Split(csv, ",")
+	whitelist := make([]string, len(list))
+
+	for i, val := range list {
+		whitelist[i] = strings.TrimSpace(val)
+	}
+
+	return whitelist
 }
 
 func main() {
@@ -50,6 +62,7 @@ func main() {
 			Password:          *password,
 		},
 		CFAppUpdateFrequency: time.Duration(*updateFrequency) * time.Second,
+		Whitelist:            normalizeWhitelist(*metricWhitelist),
 	}
 
 	processors := map[sonde_events.Envelope_EventType]processors.Processor{

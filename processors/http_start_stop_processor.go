@@ -23,39 +23,32 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 		return []metrics.Metric{}, nil
 	}
 
-	requestCountMetric, err := p.requestCount(httpStartStop, metrics.NewVars(appEvent))
-	if err != nil {
-		return []metrics.Metric{}, nil
-	}
-	responseTimeMetric, err := p.responseTime(httpStartStop, metrics.NewVars(appEvent))
-	if err != nil {
-		return []metrics.Metric{}, nil
-	}
-	return []metrics.Metric{requestCountMetric, responseTimeMetric}, nil
-}
-
-func (p *HttpStartStopProcessor) requestCount(httpStartStop *sonde_events.HttpStartStop, vars *metrics.Vars) (metrics.Metric, error) {
-	vars.Metric = "requests." + statusClass(int(*httpStartStop.StatusCode))
-	vars.Instance = fmt.Sprintf("%d", *httpStartStop.InstanceIndex)
-	metricStat, err := vars.RenderTemplate(p.tmpl)
-	if err != nil {
-		return nil, err
-	}
-	return metrics.NewCounterMetric(metricStat, 1), nil
-}
-
-func (p *HttpStartStopProcessor) responseTime(httpStartStop *sonde_events.HttpStartStop, vars *metrics.Vars) (metrics.Metric, error) {
-	vars.Metric = "responseTime." + statusClass(int(*httpStartStop.StatusCode))
-	vars.Instance = fmt.Sprintf("%d", *httpStartStop.InstanceIndex)
-	metricStat, err := vars.RenderTemplate(p.tmpl)
-	if err != nil {
-		return nil, err
-	}
-
-	startTimestamp := httpStartStop.GetStartTimestamp()
-	stopTimestamp := httpStartStop.GetStopTimestamp()
-	elapsedDuration := time.Duration(stopTimestamp - startTimestamp)
-	return metrics.NewPrecisionTimingMetric(metricStat, elapsedDuration), nil
+	return []metrics.Metric{
+		metrics.CounterMetric{
+			Instance:     fmt.Sprintf("%d", *httpStartStop.InstanceIndex),
+			Template:     p.tmpl,
+			App:          appEvent.App.Name,
+			GUID:         appEvent.App.Guid,
+			CellId:       appEvent.Envelope.GetIndex(),
+			Job:          appEvent.Envelope.GetJob(),
+			Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+			Space:        appEvent.App.SpaceData.Entity.Name,
+			Metric:       "requests." + statusClass(int(*httpStartStop.StatusCode)),
+			Value:        1,
+		},
+		metrics.PrecisionTimingMetric{
+			Instance:     fmt.Sprintf("%d", *httpStartStop.InstanceIndex),
+			Template:     p.tmpl,
+			App:          appEvent.App.Name,
+			GUID:         appEvent.App.Guid,
+			CellId:       appEvent.Envelope.GetIndex(),
+			Job:          appEvent.Envelope.GetJob(),
+			Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+			Space:        appEvent.App.SpaceData.Entity.Name,
+			Metric:       "responseTime." + statusClass(int(*httpStartStop.StatusCode)),
+			Value:        time.Duration(httpStartStop.GetStopTimestamp() - httpStartStop.GetStartTimestamp()),
+		},
+	}, nil
 }
 
 func statusClass(statusCode int) string {

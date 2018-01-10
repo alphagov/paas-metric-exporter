@@ -117,8 +117,11 @@ var _ = Describe("LogMessageProcessor", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(processedMetrics).To(Equal([]metrics.Metric{
 				metrics.CounterMetric{
-					Stat:  "apps.4630f6ba-8ddc-41f1-afea-1905332d6660.0.crash",
-					Value: 1,
+					GUID:     "4630f6ba-8ddc-41f1-afea-1905332d6660",
+					Instance: "0",
+					Metric:   "crash",
+					Template: tmpl,
+					Value:    1,
 				},
 			}))
 		})
