@@ -61,16 +61,16 @@ func NewApplication(
 	}
 }
 
-func (a *Application) whitelisted(name string) bool {
-	if len(a.config.Whitelist) > 0 {
-		for _, prefix := range a.config.Whitelist {
-			if strings.HasPrefix(name, prefix) {
-				return true
-			}
-		}
-		return false
+func (a *Application) enabled(name string) bool {
+	if len(a.config.Whitelist) == 0 {
+		return true
 	}
-	return true
+	for _, prefix := range a.config.Whitelist {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // Run starts the application
@@ -93,7 +93,7 @@ func (a *Application) Run() {
 			}
 
 			for _, metric := range processedMetrics {
-				if !a.whitelisted(metric.Name()) {
+				if !a.enabled(metric.Name()) {
 					continue
 				}
 				if err := metric.Send(a.sender, a.config.Template); err != nil {
