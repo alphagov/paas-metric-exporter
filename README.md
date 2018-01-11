@@ -44,6 +44,21 @@ Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#m
 |Enable debug mode|debug|DEBUG|This disables forwarding to statsd and prints to stdout|
 |Update frequency|update-frequency|UPDATE_FREQUENCY|The time in seconds, that takes between each apps update call|
 |Metric template|metric-template|METRIC_TEMPLATE|The template that will form a new metric namespace|
+|[Metric Whitelist](#metric-whitelist)|metric-whitelist|METRIC_WHITELIST|Comma separated metric name prefixes to enable. All by default.|
+
+## Metric Whitelist
+
+By default all the above metrics will be emitted to your StatsD endpoint.
+
+You may restrict these, by composing a list of comma separated metric name
+prefixes. For instance, in order to limit metrics to CPU, Disk usage, `2xx`
+Response Times, all of the Requests metrics (`requests.1xx`, `requests.2xx`,
+`requests.3xx`, `requests.4xx`, `requests.5xx`, `requests.other`):
+
+```sh
+export METRIC_WHITELIST="cpu,diskBytes,responseTime.2xx,requests"
+go run main.go
+```
 
 ## Supported template fields
 

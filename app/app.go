@@ -2,6 +2,7 @@ package app
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/alphagov/paas-metric-exporter/events"
@@ -15,6 +16,8 @@ import (
 type Config struct {
 	CFClientConfig       *cfclient.Config
 	CFAppUpdateFrequency time.Duration
+	Whitelist            []string
+	Template             string
 }
 
 // Application is the main application logic
@@ -58,6 +61,18 @@ func NewApplication(
 	}
 }
 
+func (a *Application) enabled(name string) bool {
+	if len(a.config.Whitelist) == 0 {
+		return true
+	}
+	for _, prefix := range a.config.Whitelist {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // Run starts the application
 func (a *Application) Run() {
 	log.Println("Starting")
@@ -78,7 +93,10 @@ func (a *Application) Run() {
 			}
 
 			for _, metric := range processedMetrics {
-				if err := metric.Send(a.sender); err != nil {
+				if !a.enabled(metric.Name()) {
+					continue
+				}
+				if err := metric.Send(a.sender, a.config.Template); err != nil {
 					log.Printf("sending metrics failed: %v\n", err)
 				}
 			}

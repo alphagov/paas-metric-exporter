@@ -10,13 +10,7 @@ import (
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 
-type LogMessageProcessor struct {
-	tmpl string
-}
-
-func NewLogMessageProcessor(tmpl string) *LogMessageProcessor {
-	return &LogMessageProcessor{tmpl: tmpl}
-}
+type LogMessageProcessor struct{}
 
 func (p *LogMessageProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metric, error) {
 	processedMetrics := []metrics.Metric{}
@@ -52,14 +46,18 @@ func (p *LogMessageProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metr
 		return processedMetrics, nil
 	}
 
-	vars := metrics.NewVars(appEvent)
-	vars.Metric = "crash"
-	vars.Instance = fmt.Sprintf("%d", logMessagePayload.Index)
-	metricStat, err := vars.RenderTemplate(p.tmpl)
-	if err == nil {
-		metric := metrics.NewCounterMetric(metricStat, 1)
-		processedMetrics = append(processedMetrics, *metric)
+	metric := metrics.CounterMetric{
+		Instance:     fmt.Sprintf("%d", logMessagePayload.Index),
+		App:          appEvent.App.Name,
+		GUID:         appEvent.App.Guid,
+		CellId:       appEvent.Envelope.GetIndex(),
+		Job:          appEvent.Envelope.GetJob(),
+		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
+		Space:        appEvent.App.SpaceData.Entity.Name,
+		Metric:       "crash",
+		Value:        1,
 	}
+	processedMetrics = append(processedMetrics, metric)
 
 	return processedMetrics, err
 }

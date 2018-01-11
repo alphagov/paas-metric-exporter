@@ -1,12 +1,13 @@
 package processors_test
 
 import (
+	"time"
+
 	"github.com/alphagov/paas-metric-exporter/events"
 	"github.com/alphagov/paas-metric-exporter/metrics"
 	. "github.com/alphagov/paas-metric-exporter/processors"
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -15,7 +16,6 @@ import (
 var _ = Describe("HttpStartStopProcessor", func() {
 	var (
 		processor                      *HttpStartStopProcessor
-		tmpl                           string
 		envelopeHttpStartStopEventType sonde_events.Envelope_EventType
 		httpStatusTestCases            = map[string]int32{
 			"1xx":   100,
@@ -28,8 +28,7 @@ var _ = Describe("HttpStartStopProcessor", func() {
 	)
 
 	BeforeEach(func() {
-		tmpl = "apps.{{.GUID}}.{{.Instance}}.{{.Metric}}"
-		processor = NewHttpStartStopProcessor(tmpl)
+		processor = &HttpStartStopProcessor{}
 
 		envelopeHttpStartStopEventType = sonde_events.Envelope_HttpStartStop
 	})
@@ -72,18 +71,22 @@ var _ = Describe("HttpStartStopProcessor", func() {
 				It("returns requests counter metric", func() {
 					processedMetrics, err := processor.Process(httpStartStopEvent)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(processedMetrics).To(ContainElement(&metrics.CounterMetric{
-						Stat:  "apps." + applicationID + ".0.requests." + statusRange,
-						Value: 1,
+					Expect(processedMetrics).To(ContainElement(metrics.CounterMetric{
+						Metric:   "requests." + statusRange,
+						Instance: "0",
+						GUID:     applicationID,
+						Value:    1,
 					}))
 				})
 
 				It("returns response_time timer metric", func() {
 					processedMetrics, err := processor.Process(httpStartStopEvent)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(processedMetrics).To(ContainElement(&metrics.PrecisionTimingMetric{
-						Stat:  "apps." + applicationID + ".0.responseTime." + statusRange,
-						Value: 11 * time.Millisecond,
+					Expect(processedMetrics).To(ContainElement(metrics.PrecisionTimingMetric{
+						Metric:   "responseTime." + statusRange,
+						Instance: "0",
+						GUID:     applicationID,
+						Value:    11 * time.Millisecond,
 					}))
 				})
 

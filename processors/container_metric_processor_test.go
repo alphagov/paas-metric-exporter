@@ -15,13 +15,11 @@ var _ = Describe("ContainerMetricProcessor", func() {
 		processor            *ContainerMetricProcessor
 		event                *sonde_events.Envelope
 		appEvent             *events.AppEvent
-		tmpl                 string
 		containerMetricEvent *sonde_events.ContainerMetric
 	)
 
 	BeforeEach(func() {
-		tmpl = "apps.{{.GUID}}.{{.Metric}}.{{.Instance}}"
-		processor = NewContainerMetricProcessor(tmpl)
+		processor = &ContainerMetricProcessor{}
 
 		applicationId := "60a13b0f-fce7-4c02-b92a-d43d583877ed"
 		instanceIndex := int32(0)
@@ -56,23 +54,9 @@ var _ = Describe("ContainerMetricProcessor", func() {
 			Expect(err).To(BeNil())
 			Expect(processedMetrics).To(HaveLen(3))
 		})
-
-		It("should fail", func() {
-			processorWithInvalidTemplate := NewContainerMetricProcessor("{{Error}}")
-			_, err := processorWithInvalidTemplate.Process(appEvent)
-
-			Expect(err).To(HaveOccurred())
-		})
 	})
 
 	Describe("#ProcessContainerMetricCPU", func() {
-		It("formats the Stat string to include the ContainerMetric's app ID and instance index", func() {
-			metric, err := processor.ProcessContainerMetric("cpu", appEvent)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(metric.Stat).To(Equal("apps.60a13b0f-fce7-4c02-b92a-d43d583877ed.cpu.0"))
-		})
-
 		It("sets the Metric Value to the value of the ContainerMetric cpuPercentage", func() {
 			metric, err := processor.ProcessContainerMetric("cpu", appEvent)
 
@@ -82,13 +66,6 @@ var _ = Describe("ContainerMetricProcessor", func() {
 	})
 
 	Describe("#ProcessContainerMetricMemory", func() {
-		It("formats the Stat string to include the ContainerMetric's app ID and instance index", func() {
-			metric, err := processor.ProcessContainerMetric("mem", appEvent)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(metric.Stat).To(Equal("apps.60a13b0f-fce7-4c02-b92a-d43d583877ed.memoryBytes.0"))
-		})
-
 		It("sets the Metric Value to the value of the ContainerMetric memoryBytes", func() {
 			metric, err := processor.ProcessContainerMetric("mem", appEvent)
 
@@ -98,13 +75,6 @@ var _ = Describe("ContainerMetricProcessor", func() {
 	})
 
 	Describe("#ProcessContainerMetricDisk", func() {
-		It("formats the Stat string to include the ContainerMetric's app ID and instance index", func() {
-			metric, err := processor.ProcessContainerMetric("dsk", appEvent)
-
-			Expect(err).NotTo(HaveOccurred())
-			Expect(metric.Stat).To(Equal("apps.60a13b0f-fce7-4c02-b92a-d43d583877ed.diskBytes.0"))
-		})
-
 		It("sets the Metric Value to the value of the ContainerMetric diskBytes", func() {
 			metric, err := processor.ProcessContainerMetric("dsk", appEvent)
 
