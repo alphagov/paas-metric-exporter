@@ -16,7 +16,6 @@ import (
 var _ = Describe("HttpStartStopProcessor", func() {
 	var (
 		processor                      *HttpStartStopProcessor
-		tmpl                           string
 		envelopeHttpStartStopEventType sonde_events.Envelope_EventType
 		httpStatusTestCases            = map[string]int32{
 			"1xx":   100,
@@ -29,8 +28,7 @@ var _ = Describe("HttpStartStopProcessor", func() {
 	)
 
 	BeforeEach(func() {
-		tmpl = "apps.{{.GUID}}.{{.Instance}}.{{.Metric}}"
-		processor = NewHttpStartStopProcessor(tmpl)
+		processor = &HttpStartStopProcessor{}
 
 		envelopeHttpStartStopEventType = sonde_events.Envelope_HttpStartStop
 	})
@@ -77,7 +75,6 @@ var _ = Describe("HttpStartStopProcessor", func() {
 						Metric:   "requests." + statusRange,
 						Instance: "0",
 						GUID:     applicationID,
-						Template: tmpl,
 						Value:    1,
 					}))
 				})
@@ -89,7 +86,6 @@ var _ = Describe("HttpStartStopProcessor", func() {
 						Metric:   "responseTime." + statusRange,
 						Instance: "0",
 						GUID:     applicationID,
-						Template: tmpl,
 						Value:    11 * time.Millisecond,
 					}))
 				})

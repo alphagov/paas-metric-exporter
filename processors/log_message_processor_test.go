@@ -14,14 +14,12 @@ import (
 var _ = Describe("LogMessageProcessor", func() {
 	var (
 		processor         *LogMessageProcessor
-		tmpl              string
 		appCrashEvent     *events.AppEvent
 		appNonCrashEvents []*events.AppEvent
 	)
 
 	BeforeEach(func() {
-		tmpl = "apps.{{.GUID}}.{{.Instance}}.{{.Metric}}"
-		processor = NewLogMessageProcessor(tmpl)
+		processor = &LogMessageProcessor{}
 
 		envelopeLogMessageEventType := sonde_events.Envelope_LogMessage
 		logMessageOutMessageType := sonde_events.LogMessage_OUT
@@ -120,7 +118,6 @@ var _ = Describe("LogMessageProcessor", func() {
 					GUID:     "4630f6ba-8ddc-41f1-afea-1905332d6660",
 					Instance: "0",
 					Metric:   "crash",
-					Template: tmpl,
 					Value:    1,
 				},
 			}))

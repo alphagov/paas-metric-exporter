@@ -8,10 +8,11 @@ import (
 )
 
 type FakeMetric struct {
-	SendStub        func(metrics.StatsdClient) error
+	SendStub        func(sender metrics.StatsdClient, template string) error
 	sendMutex       sync.RWMutex
 	sendArgsForCall []struct {
-		arg1 metrics.StatsdClient
+		sender   metrics.StatsdClient
+		template string
 	}
 	sendReturns struct {
 		result1 error
@@ -32,16 +33,17 @@ type FakeMetric struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeMetric) Send(arg1 metrics.StatsdClient) error {
+func (fake *FakeMetric) Send(sender metrics.StatsdClient, template string) error {
 	fake.sendMutex.Lock()
 	ret, specificReturn := fake.sendReturnsOnCall[len(fake.sendArgsForCall)]
 	fake.sendArgsForCall = append(fake.sendArgsForCall, struct {
-		arg1 metrics.StatsdClient
-	}{arg1})
-	fake.recordInvocation("Send", []interface{}{arg1})
+		sender   metrics.StatsdClient
+		template string
+	}{sender, template})
+	fake.recordInvocation("Send", []interface{}{sender, template})
 	fake.sendMutex.Unlock()
 	if fake.SendStub != nil {
-		return fake.SendStub(arg1)
+		return fake.SendStub(sender, template)
 	}
 	if specificReturn {
 		return ret.result1
@@ -55,10 +57,10 @@ func (fake *FakeMetric) SendCallCount() int {
 	return len(fake.sendArgsForCall)
 }
 
-func (fake *FakeMetric) SendArgsForCall(i int) metrics.StatsdClient {
+func (fake *FakeMetric) SendArgsForCall(i int) (metrics.StatsdClient, string) {
 	fake.sendMutex.RLock()
 	defer fake.sendMutex.RUnlock()
-	return fake.sendArgsForCall[i].arg1
+	return fake.sendArgsForCall[i].sender, fake.sendArgsForCall[i].template
 }
 
 func (fake *FakeMetric) SendReturns(result1 error) {

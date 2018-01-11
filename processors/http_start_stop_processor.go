@@ -9,13 +9,7 @@ import (
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 )
 
-type HttpStartStopProcessor struct {
-	tmpl string
-}
-
-func NewHttpStartStopProcessor(tmpl string) *HttpStartStopProcessor {
-	return &HttpStartStopProcessor{tmpl: tmpl}
-}
+type HttpStartStopProcessor struct{}
 
 func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metric, error) {
 	httpStartStop := appEvent.Envelope.GetHttpStartStop()
@@ -26,7 +20,6 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 	return []metrics.Metric{
 		metrics.CounterMetric{
 			Instance:     fmt.Sprintf("%d", *httpStartStop.InstanceIndex),
-			Template:     p.tmpl,
 			App:          appEvent.App.Name,
 			GUID:         appEvent.App.Guid,
 			CellId:       appEvent.Envelope.GetIndex(),
@@ -38,7 +31,6 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 		},
 		metrics.PrecisionTimingMetric{
 			Instance:     fmt.Sprintf("%d", *httpStartStop.InstanceIndex),
-			Template:     p.tmpl,
 			App:          appEvent.App.Name,
 			GUID:         appEvent.App.Guid,
 			CellId:       appEvent.Envelope.GetIndex(),

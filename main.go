@@ -63,12 +63,13 @@ func main() {
 		},
 		CFAppUpdateFrequency: time.Duration(*updateFrequency) * time.Second,
 		Whitelist:            normalizeWhitelist(*metricWhitelist),
+		Template:             *metricTemplate,
 	}
 
 	processors := map[sonde_events.Envelope_EventType]processors.Processor{
-		sonde_events.Envelope_ContainerMetric: processors.NewContainerMetricProcessor(*metricTemplate),
-		sonde_events.Envelope_LogMessage:      processors.NewLogMessageProcessor(*metricTemplate),
-		sonde_events.Envelope_HttpStartStop:   processors.NewHttpStartStopProcessor(*metricTemplate),
+		sonde_events.Envelope_ContainerMetric: &processors.ContainerMetricProcessor{},
+		sonde_events.Envelope_LogMessage:      &processors.LogMessageProcessor{},
+		sonde_events.Envelope_HttpStartStop:   &processors.HttpStartStopProcessor{},
 	}
 
 	var sender metrics.StatsdClient

@@ -8,13 +8,7 @@ import (
 	"github.com/alphagov/paas-metric-exporter/metrics"
 )
 
-type ContainerMetricProcessor struct {
-	tmpl string
-}
-
-func NewContainerMetricProcessor(tmpl string) *ContainerMetricProcessor {
-	return &ContainerMetricProcessor{tmpl: tmpl}
-}
+type ContainerMetricProcessor struct{}
 
 func (p *ContainerMetricProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metric, error) {
 	processedMetrics := make([]metrics.Metric, 3)
@@ -34,7 +28,6 @@ func (p *ContainerMetricProcessor) ProcessContainerMetric(metricType string, app
 
 	metric := metrics.GaugeMetric{
 		Instance:     strconv.Itoa(int(containerMetricEvent.GetInstanceIndex())),
-		Template:     p.tmpl,
 		App:          appEvent.App.Name,
 		GUID:         appEvent.App.Guid,
 		CellId:       appEvent.Envelope.GetIndex(),

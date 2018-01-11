@@ -15,13 +15,11 @@ var _ = Describe("ContainerMetricProcessor", func() {
 		processor            *ContainerMetricProcessor
 		event                *sonde_events.Envelope
 		appEvent             *events.AppEvent
-		tmpl                 string
 		containerMetricEvent *sonde_events.ContainerMetric
 	)
 
 	BeforeEach(func() {
-		tmpl = "apps.{{.GUID}}.{{.Metric}}.{{.Instance}}"
-		processor = NewContainerMetricProcessor(tmpl)
+		processor = &ContainerMetricProcessor{}
 
 		applicationId := "60a13b0f-fce7-4c02-b92a-d43d583877ed"
 		instanceIndex := int32(0)

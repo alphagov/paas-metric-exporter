@@ -17,6 +17,7 @@ type Config struct {
 	CFClientConfig       *cfclient.Config
 	CFAppUpdateFrequency time.Duration
 	Whitelist            []string
+	Template             string
 }
 
 // Application is the main application logic
@@ -95,7 +96,7 @@ func (a *Application) Run() {
 				if !a.whitelisted(metric.Name()) {
 					continue
 				}
-				if err := metric.Send(a.sender); err != nil {
+				if err := metric.Send(a.sender, a.config.Template); err != nil {
 					log.Printf("sending metrics failed: %v\n", err)
 				}
 			}
