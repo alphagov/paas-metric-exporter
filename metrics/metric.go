@@ -38,7 +38,12 @@ func (m CounterMetric) Name() string {
 }
 
 func (m CounterMetric) Send(statsdClient StatsdClient, tmpl string) error {
-	return statsdClient.Incr(render(tmpl, m), m.Value)
+	tmplName, err := render(tmpl, m)
+	if err != nil {
+		return err
+	}
+
+	return statsdClient.Incr(tmplName, m.Value)
 }
 
 type GaugeMetric struct {
@@ -60,7 +65,12 @@ func (m GaugeMetric) Name() string {
 }
 
 func (m GaugeMetric) Send(statsdClient StatsdClient, tmpl string) error {
-	return statsdClient.Gauge(render(tmpl, m), m.Value)
+	tmplName, err := render(tmpl, m)
+	if err != nil {
+		return err
+	}
+
+	return statsdClient.Gauge(tmplName, m.Value)
 }
 
 type FGaugeMetric struct {
@@ -82,7 +92,12 @@ func (m FGaugeMetric) Name() string {
 }
 
 func (m FGaugeMetric) Send(statsdClient StatsdClient, tmpl string) error {
-	return statsdClient.FGauge(render(tmpl, m), m.Value)
+	tmplName, err := render(tmpl, m)
+	if err != nil {
+		return err
+	}
+
+	return statsdClient.FGauge(tmplName, m.Value)
 }
 
 type TimingMetric struct {
@@ -104,7 +119,12 @@ func (m TimingMetric) Name() string {
 }
 
 func (m TimingMetric) Send(statsdClient StatsdClient, tmpl string) error {
-	return statsdClient.Timing(render(tmpl, m), m.Value)
+	tmplName, err := render(tmpl, m)
+	if err != nil {
+		return err
+	}
+
+	return statsdClient.Timing(tmplName, m.Value)
 }
 
 type PrecisionTimingMetric struct {
@@ -126,5 +146,10 @@ func (m PrecisionTimingMetric) Name() string {
 }
 
 func (m PrecisionTimingMetric) Send(statsdClient StatsdClient, tmpl string) error {
-	return statsdClient.PrecisionTiming(render(tmpl, m), m.Value)
+	tmplName, err := render(tmpl, m)
+	if err != nil {
+		return err
+	}
+
+	return statsdClient.PrecisionTiming(tmplName, m.Value)
 }

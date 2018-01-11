@@ -5,20 +5,7 @@ import (
 	"text/template"
 )
 
-// func NewVars(appEvent *events.AppEvent) *Vars {
-// 	return &Vars{
-// 		App:          appEvent.App.Name,
-// 		GUID:         appEvent.App.Guid,
-// 		CellId:       appEvent.Envelope.GetIndex(),
-// 		Instance:     "",
-// 		Job:          appEvent.Envelope.GetJob(),
-// 		Metric:       "",
-// 		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
-// 		Space:        appEvent.App.SpaceData.Entity.Name,
-// 	}
-// }
-
-func render(t string, data interface{}) string {
+func render(t string, data interface{}) (string, error) {
 	if t == "" {
 		t = "{{.Metric}}"
 	}
@@ -27,13 +14,13 @@ func render(t string, data interface{}) string {
 	tmpl, err := template.New("metric").Parse(t)
 
 	if err != nil {
-		panic(err) // FIXME
+		return "", err
 	}
 
 	err = tmpl.Execute(&metric, data)
 	if err != nil {
-		panic(err) // FIXME
+		return "", err
 	}
 
-	return metric.String()
+	return metric.String(), nil
 }
