@@ -94,7 +94,7 @@ var _ = Describe("App", func() {
 			Expect(processedEvent).To(Equal(event2))
 		}, 3)
 
-		It("the processed metrics should be sent to the statsd client", func() {
+		It("sends processed metrics to the statsd client", func() {
 			metric1 := &metrics.GaugeMetric{Metric: "metric1", Value: 1}
 			metric2 := &metrics.GaugeMetric{Metric: "metric2", Value: 2}
 			proc1.ProcessReturnsOnCall(0, []metrics.Metric{metric1, metric2}, nil)
@@ -194,7 +194,7 @@ var _ = Describe("App", func() {
 			}
 		})
 
-		It("should not emmit all of the gauge metrics", func() {
+		It("only emits the metrics specified in the whitelist", func() {
 			metric1 := &metrics.GaugeMetric{Metric: "blacklisted.metric", Value: 1}
 			metric2 := &metrics.GaugeMetric{Metric: "whitelisted.metric", Value: 2}
 			proc1.ProcessReturnsOnCall(0, []metrics.Metric{metric1, metric2}, nil)
@@ -210,7 +210,6 @@ var _ = Describe("App", func() {
 			Eventually(func() int {
 				return statsdClient.GaugeCallCount()
 			}).Should(Equal(1))
-			// YUCK: We don't like the following, but couldn't come up with a better approach.
 			Consistently(func() int {
 				return statsdClient.GaugeCallCount()
 			}).Should(Equal(1))
