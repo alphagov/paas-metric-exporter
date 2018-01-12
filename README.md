@@ -69,7 +69,6 @@ You can use following template fields in your metric template:
 * `{{.App}}` - name of the application
 * `{{.CellId}}` - Cell GUID
 * `{{.GUID}}` - Application ID
-* `{{.Index}}` - BOSH job index e.g. `0`
 * `{{.Instance}}` - Application instance
 * `{{.Job}}` - BOSH job name e.g `cell`
 * `{{.Metric}}` - a metric from the list of available metrics

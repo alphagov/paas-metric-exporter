@@ -29,7 +29,6 @@ type CounterMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -56,7 +55,6 @@ type GaugeMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -83,7 +81,6 @@ type FGaugeMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -110,7 +107,6 @@ type TimingMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -137,7 +133,6 @@ type PrecisionTimingMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
