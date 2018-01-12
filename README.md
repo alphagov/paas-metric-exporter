@@ -14,7 +14,9 @@ The following metrics will be exported for every application instance.
 |:---|:---|:---|
 |`cpu`|gauge|CPU utilisation|
 |`diskBytes`|gauge|Disk usage in bytes|
+|`diskUtilization`|gauge|Disk utilisation in percent (0-100)|
 |`memoryBytes`|gauge|Memory usage in bytes|
+|`memoryUtilization`|gauge|Memory utilisation in percent (0-100)|
 |`crash`|counter|Increased by one if the application crashed for any reason|
 |`requests.1xx`|counter|Number of requests processed with 1xx status|
 |`requests.2xx`|counter|Number of requests processed with 2xx status|

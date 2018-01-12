@@ -1,7 +1,7 @@
 package processors
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/alphagov/paas-metric-exporter/events"
@@ -11,44 +11,38 @@ import (
 type ContainerMetricProcessor struct{}
 
 func (p *ContainerMetricProcessor) Process(appEvent *events.AppEvent) ([]metrics.Metric, error) {
-	processedMetrics := make([]metrics.Metric, 3)
-	var err error
+	metric := appEvent.Envelope.GetContainerMetric()
 
-	for i, metricType := range []string{"cpu", "mem", "dsk"} {
-		processedMetrics[i], err = p.ProcessContainerMetric(metricType, appEvent)
-		if err != nil {
-			return nil, err
-		}
+	if metric.GetMemoryBytesQuota() == 0 {
+		return nil, fmt.Errorf("Memory quota is 0 for %s", appEvent.App.Guid)
 	}
-	return processedMetrics, nil
+
+	if metric.GetDiskBytesQuota() == 0 {
+		return nil, fmt.Errorf("Disk byte quota is 0 for %s", appEvent.App.Guid)
+	}
+
+	memoryUtilization := int64(float64(metric.GetMemoryBytes()) / float64(metric.GetMemoryBytesQuota()) * 100)
+	diskUtilization := int64(float64(metric.GetDiskBytes()) / float64(metric.GetDiskBytesQuota()) * 100)
+
+	return []metrics.Metric{
+		createContainerMetric(appEvent, "cpu", int64(metric.GetCpuPercentage())),
+		createContainerMetric(appEvent, "memoryBytes", int64(metric.GetMemoryBytes())),
+		createContainerMetric(appEvent, "memoryUtilization", memoryUtilization),
+		createContainerMetric(appEvent, "diskBytes", int64(metric.GetDiskBytes())),
+		createContainerMetric(appEvent, "diskUtilization", diskUtilization),
+	}, nil
 }
 
-func (p *ContainerMetricProcessor) ProcessContainerMetric(metricType string, appEvent *events.AppEvent) (metrics.GaugeMetric, error) {
-	containerMetricEvent := appEvent.Envelope.GetContainerMetric()
-
-	metric := metrics.GaugeMetric{
-		Instance:     strconv.Itoa(int(containerMetricEvent.GetInstanceIndex())),
+func createContainerMetric(appEvent *events.AppEvent, metric string, value int64) metrics.GaugeMetric {
+	return metrics.GaugeMetric{
+		Instance:     strconv.Itoa(int(appEvent.Envelope.GetContainerMetric().GetInstanceIndex())),
 		App:          appEvent.App.Name,
 		GUID:         appEvent.App.Guid,
 		CellId:       appEvent.Envelope.GetIndex(),
 		Job:          appEvent.Envelope.GetJob(),
 		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
 		Space:        appEvent.App.SpaceData.Entity.Name,
+		Metric:       metric,
+		Value:        value,
 	}
-
-	switch metricType {
-	case "cpu":
-		metric.Metric = "cpu"
-		metric.Value = int64(containerMetricEvent.GetCpuPercentage())
-	case "mem":
-		metric.Metric = "memoryBytes"
-		metric.Value = int64(containerMetricEvent.GetMemoryBytes())
-	case "dsk":
-		metric.Metric = "diskBytes"
-		metric.Value = int64(containerMetricEvent.GetDiskBytes())
-	default:
-		return metric, errors.New("Unsupported metric type.")
-	}
-
-	return metric, nil
 }
