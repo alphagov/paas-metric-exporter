@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+var _ Metric = CounterMetric{}
+var _ Metric = GaugeMetric{}
+var _ Metric = FGaugeMetric{}
+var _ Metric = TimingMetric{}
+var _ Metric = PrecisionTimingMetric{}
+
 //go:generate counterfeiter -o mocks/statsd_client.go . StatsdClient
 type StatsdClient interface {
 	Gauge(stat string, value int64) error
@@ -23,7 +29,6 @@ type CounterMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -50,7 +55,6 @@ type GaugeMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -77,7 +81,6 @@ type FGaugeMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -104,7 +107,6 @@ type TimingMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
@@ -131,7 +133,6 @@ type PrecisionTimingMetric struct {
 	App          string
 	CellId       string
 	GUID         string
-	Index        string
 	Instance     string
 	Job          string
 	Metric       string
