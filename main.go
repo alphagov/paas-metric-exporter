@@ -2,16 +2,16 @@ package main
 
 import (
 	"log"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/alphagov/paas-metric-exporter/app"
 	"github.com/alphagov/paas-metric-exporter/metrics"
 	"github.com/alphagov/paas-metric-exporter/processors"
-	"github.com/alphagov/paas-metric-exporter/statsd"
+	"github.com/alphagov/paas-metric-exporter/senders"
 	"github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
-	quipo_statsd "github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -72,13 +72,25 @@ func main() {
 		sonde_events.Envelope_HttpStartStop:   &processors.HttpStartStopProcessor{},
 	}
 
-	var sender metrics.StatsdClient
+	var sender metrics.Sender
+	var err error
+
 	if !*debug {
-		statsdSender := quipo_statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
-		statsdSender.CreateSocket()
-		sender = statsdSender
+		sender, err = senders.NewStatsdSender(
+			*statsdEndpoint,
+			*statsdPrefix,
+			config.Template,
+		)
 	} else {
-		sender = statsd.DebugClient{Prefix: *statsdPrefix}
+		sender, err = senders.NewDebugSender(
+			*statsdPrefix,
+			config.Template,
+		)
+	}
+
+	if err != nil {
+		os.Stderr.WriteString(err.Error() + "\n")
+		os.Exit(1)
 	}
 
 	app := app.NewApplication(config, processors, sender)
