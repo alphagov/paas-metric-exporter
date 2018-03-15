@@ -1,8 +1,6 @@
 package metrics_test
 
 import (
-	"errors"
-
 	. "github.com/alphagov/paas-metric-exporter/metrics"
 
 	. "github.com/onsi/ginkgo"
@@ -21,13 +19,6 @@ type FakeStatsdClient struct {
 	value                 int64
 	fValue                float64
 	precisionTimingValue  time.Duration
-}
-
-func (f *FakeStatsdClient) Timing(metric TimingMetric) error {
-	f.timingCalled = true
-	f.stat = metric.Metric
-	f.value = metric.Value
-	return nil
 }
 
 func (f *FakeStatsdClient) PrecisionTiming(metric PrecisionTimingMetric) error {
@@ -51,14 +42,6 @@ func (f *FakeStatsdClient) Gauge(metric GaugeMetric) error {
 	return nil
 }
 
-func (f *FakeStatsdClient) FGauge(metric FGaugeMetric) error {
-	f.fGaugeCalled = true
-	f.stat = metric.Metric
-	f.fValue = metric.Value
-
-	return errors.New("StatsdClientSendError")
-}
-
 var _ = Describe("Metric", func() {
 	var (
 		fakeStatsdClient *FakeStatsdClient
@@ -79,24 +62,6 @@ var _ = Describe("Metric", func() {
 
 			Expect(metric.Name()).To(Equal("my.gauge.metric"))
 			Expect(metric.Value).To(Equal(int64(20)))
-		})
-	})
-
-	Describe("#NewFGaugeMetric", func() {
-		It("creates a new FGaugeMetric", func() {
-			metric := FGaugeMetric{Metric: "my.fgauge.metric", Value: 20.25}
-
-			Expect(metric.Name()).To(Equal("my.fgauge.metric"))
-			Expect(metric.Value).To(Equal(float64(20.25)))
-		})
-	})
-
-	Describe("#NewTimingMetric", func() {
-		It("creates a new TimingMetric", func() {
-			metric := TimingMetric{Metric: "my.timing.metric", Value: 100}
-
-			Expect(metric.Name()).To(Equal("my.timing.metric"))
-			Expect(metric.Value).To(Equal(int64(100)))
 		})
 	})
 
@@ -186,63 +151,12 @@ var _ = Describe("Metric", func() {
 			})
 		})
 
-		Context("with an FGaugeMetric", func() {
-			Context("without prefix", func() {
-				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
-					metric.Send(fakeStatsdClient)
-
-					Expect(fakeStatsdClient.fGaugeCalled).To(BeTrue())
-					Expect(fakeStatsdClient.stat).To(Equal("router__0.numCPUS"))
-					Expect(fakeStatsdClient.fValue).To(Equal(float64(4)))
-				})
-
-				It("should fail to parse template due to lack of dot", func() {
-					metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
-					Expect(metric.Send(fakeStatsdClient)).NotTo(Succeed())
-				})
-			})
-
-			Context("with prefix", func() {
-				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
-					metric.Send(fakeStatsdClient)
-
-					Expect(fakeStatsdClient.fGaugeCalled).To(BeTrue())
-					Expect(fakeStatsdClient.stat).To(Equal("router__0.numCPUS"))
-					Expect(fakeStatsdClient.fValue).To(Equal(float64(4)))
-				})
-			})
-		})
-
-		Context("with an TimingMetric", func() {
-			Context("without prefix", func() {
-				It("sends the Metric to StatsD with float64 precision", func() {
-					metric := TimingMetric{Metric: "my.timing.metric", Value: 100}
-					metric.Send(fakeStatsdClient)
-
-					Expect(fakeStatsdClient.timingCalled).To(BeTrue())
-					Expect(fakeStatsdClient.stat).To(Equal("my.timing.metric"))
-					Expect(fakeStatsdClient.value).To(Equal(int64(100)))
-				})
-			})
-		})
-
 		Context("when the StatsdClient doesn't return an error", func() {
 			It("doesn't return an error", func() {
 				metric := GaugeMetric{Metric: "router__0.numCPUS", Value: 4}
 				err := metric.Send(fakeStatsdClient)
 
 				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("when the StatsdClient returns an error", func() {
-			It("returns the error", func() {
-				metric := FGaugeMetric{Metric: "router__0.numCPUS", Value: 4}
-				err := metric.Send(fakeStatsdClient)
-
-				Expect(err).To(MatchError(errors.New("StatsdClientSendError")))
 			})
 		})
 	})

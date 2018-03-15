@@ -7,18 +7,16 @@ import (
 )
 
 type StatsdSender struct {
-	Client    *quipo_statsd.StatsdClient
+	Client    quipo_statsd.Statsd
 	presenter presenters.PathPresenter
 }
 
 var _ metrics.Sender = StatsdSender{}
 
-func NewStatsdSender(statsdEndpoint string, statsdPrefix string, template string) (StatsdSender, error) {
+const DefaultTemplate = "{{.Space}}.{{.App}}.{{.Instance}}.{{.Metric}}"
+
+func NewStatsdSender(client quipo_statsd.Statsd, template string) (StatsdSender, error) {
 	presenter, err := presenters.NewPathPresenter(template)
-
-	client := quipo_statsd.NewStatsdClient(statsdEndpoint, statsdPrefix)
-	client.CreateSocket()
-
 	sender := StatsdSender{Client: client, presenter: presenter}
 
 	return sender, err
@@ -33,15 +31,6 @@ func (s StatsdSender) Gauge(metric metrics.GaugeMetric) error {
 	return s.Client.Gauge(stat, metric.Value)
 }
 
-func (s StatsdSender) FGauge(metric metrics.FGaugeMetric) error {
-	stat, err := s.presenter.Present(metric)
-	if err != nil {
-		return err
-	}
-
-	return s.Client.FGauge(stat, metric.Value)
-}
-
 func (s StatsdSender) Incr(metric metrics.CounterMetric) error {
 	stat, err := s.presenter.Present(metric)
 	if err != nil {
@@ -49,15 +38,6 @@ func (s StatsdSender) Incr(metric metrics.CounterMetric) error {
 	}
 
 	return s.Client.Incr(stat, metric.Value)
-}
-
-func (s StatsdSender) Timing(metric metrics.TimingMetric) error {
-	stat, err := s.presenter.Present(metric)
-	if err != nil {
-		return err
-	}
-
-	return s.Client.Timing(stat, metric.Value)
 }
 
 func (s StatsdSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error {

@@ -17,6 +17,8 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 		return []metrics.Metric{}, nil
 	}
 
+	statusRange := statusRange(int(*httpStartStop.StatusCode))
+
 	return []metrics.Metric{
 		metrics.CounterMetric{
 			Instance:     fmt.Sprintf("%d", *httpStartStop.InstanceIndex),
@@ -26,7 +28,8 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 			Job:          appEvent.Envelope.GetJob(),
 			Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
 			Space:        appEvent.App.SpaceData.Entity.Name,
-			Metric:       "requests." + statusClass(int(*httpStartStop.StatusCode)),
+			Metric:       "requests",
+			Metadata:     map[string]string{"statusRange": statusRange},
 			Value:        1,
 		},
 		metrics.PrecisionTimingMetric{
@@ -37,13 +40,14 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 			Job:          appEvent.Envelope.GetJob(),
 			Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
 			Space:        appEvent.App.SpaceData.Entity.Name,
-			Metric:       "responseTime." + statusClass(int(*httpStartStop.StatusCode)),
+			Metric:       "responseTime",
+			Metadata:     map[string]string{"statusRange": statusRange},
 			Value:        time.Duration(httpStartStop.GetStopTimestamp() - httpStartStop.GetStartTimestamp()),
 		},
 	}, nil
 }
 
-func statusClass(statusCode int) string {
+func statusRange(statusCode int) string {
 	switch {
 	case statusCode < 100:
 		return "other"

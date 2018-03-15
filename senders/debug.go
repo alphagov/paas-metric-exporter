@@ -31,16 +31,6 @@ func (d DebugSender) Gauge(metric metrics.GaugeMetric) error {
 	return nil
 }
 
-func (d DebugSender) FGauge(metric metrics.FGaugeMetric) error {
-	stat, err := d.presenter.Present(metric)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("gauge %s %d\n", d.Prefix+stat, metric.Value)
-	return nil
-}
-
 func (d DebugSender) Incr(metric metrics.CounterMetric) error {
 	stat, err := d.presenter.Present(metric)
 	if err != nil {
@@ -48,16 +38,6 @@ func (d DebugSender) Incr(metric metrics.CounterMetric) error {
 	}
 
 	log.Printf("incr %s %d\n", d.Prefix+stat, metric.Value)
-	return nil
-}
-
-func (d DebugSender) Timing(metric metrics.TimingMetric) error {
-	stat, err := d.presenter.Present(metric)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("timing %s %d\n", d.Prefix+stat, metric.Value)
 	return nil
 }
 

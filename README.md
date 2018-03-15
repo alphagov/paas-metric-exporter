@@ -47,18 +47,19 @@ Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#m
 |Update frequency|update-frequency|UPDATE_FREQUENCY|The time in seconds, that takes between each apps update call|
 |Metric template|metric-template|METRIC_TEMPLATE|The template that will form a new metric namespace|
 |[Metric Whitelist](#metric-whitelist)|metric-whitelist|METRIC_WHITELIST|Comma separated metric name prefixes to enable. All by default.|
+|Prometheus Bind Port|prometheus-bind-port|PORT|The port that the prometheus server binds to. Default is 8080|
+|Enable Statsd|enable-statsd|ENABLE_STATSD|Enable the statsd sender. Default is true.|
+|Enable prometheus|enable-prometheus|ENABLE_PROMETHEUS|Enable the prometheus sender. Default is false.|
 
 ## Metric Whitelist
 
-By default all the above metrics will be emitted to your StatsD endpoint.
+By default all the above metrics will be emitted.
 
 You may restrict these, by composing a list of comma separated metric name
-prefixes. For instance, in order to limit metrics to CPU, Disk usage, `2xx`
-Response Times, all of the Requests metrics (`requests.1xx`, `requests.2xx`,
-`requests.3xx`, `requests.4xx`, `requests.5xx`, `requests.other`):
+prefixes. For instance, in order to limit metrics to CPU, Disk usage, Response Times, and Requests metrics:
 
 ```sh
-export METRIC_WHITELIST="cpu,diskBytes,responseTime.2xx,requests"
+export METRIC_WHITELIST="cpu,diskBytes,responseTime,requests"
 go run main.go
 ```
 

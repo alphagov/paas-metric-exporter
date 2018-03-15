@@ -72,9 +72,10 @@ var _ = Describe("HttpStartStopProcessor", func() {
 					processedMetrics, err := processor.Process(httpStartStopEvent)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(processedMetrics).To(ContainElement(metrics.CounterMetric{
-						Metric:   "requests." + statusRange,
+						Metric:   "requests",
 						Instance: "0",
 						GUID:     applicationID,
+						Metadata: map[string]string{"statusRange": statusRange},
 						Value:    1,
 					}))
 				})
@@ -83,9 +84,10 @@ var _ = Describe("HttpStartStopProcessor", func() {
 					processedMetrics, err := processor.Process(httpStartStopEvent)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(processedMetrics).To(ContainElement(metrics.PrecisionTimingMetric{
-						Metric:   "responseTime." + statusRange,
+						Metric:   "responseTime",
 						Instance: "0",
 						GUID:     applicationID,
+						Metadata: map[string]string{"statusRange": statusRange},
 						Value:    11 * time.Millisecond,
 					}))
 				})

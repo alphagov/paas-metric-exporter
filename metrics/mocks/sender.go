@@ -19,17 +19,6 @@ type FakeSender struct {
 	gaugeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	FGaugeStub        func(metric metrics.FGaugeMetric) error
-	fGaugeMutex       sync.RWMutex
-	fGaugeArgsForCall []struct {
-		metric metrics.FGaugeMetric
-	}
-	fGaugeReturns struct {
-		result1 error
-	}
-	fGaugeReturnsOnCall map[int]struct {
-		result1 error
-	}
 	IncrStub        func(metric metrics.CounterMetric) error
 	incrMutex       sync.RWMutex
 	incrArgsForCall []struct {
@@ -39,17 +28,6 @@ type FakeSender struct {
 		result1 error
 	}
 	incrReturnsOnCall map[int]struct {
-		result1 error
-	}
-	TimingStub        func(metric metrics.TimingMetric) error
-	timingMutex       sync.RWMutex
-	timingArgsForCall []struct {
-		metric metrics.TimingMetric
-	}
-	timingReturns struct {
-		result1 error
-	}
-	timingReturnsOnCall map[int]struct {
 		result1 error
 	}
 	PrecisionTimingStub        func(metric metrics.PrecisionTimingMetric) error
@@ -115,54 +93,6 @@ func (fake *FakeSender) GaugeReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeSender) FGauge(metric metrics.FGaugeMetric) error {
-	fake.fGaugeMutex.Lock()
-	ret, specificReturn := fake.fGaugeReturnsOnCall[len(fake.fGaugeArgsForCall)]
-	fake.fGaugeArgsForCall = append(fake.fGaugeArgsForCall, struct {
-		metric metrics.FGaugeMetric
-	}{metric})
-	fake.recordInvocation("FGauge", []interface{}{metric})
-	fake.fGaugeMutex.Unlock()
-	if fake.FGaugeStub != nil {
-		return fake.FGaugeStub(metric)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.fGaugeReturns.result1
-}
-
-func (fake *FakeSender) FGaugeCallCount() int {
-	fake.fGaugeMutex.RLock()
-	defer fake.fGaugeMutex.RUnlock()
-	return len(fake.fGaugeArgsForCall)
-}
-
-func (fake *FakeSender) FGaugeArgsForCall(i int) metrics.FGaugeMetric {
-	fake.fGaugeMutex.RLock()
-	defer fake.fGaugeMutex.RUnlock()
-	return fake.fGaugeArgsForCall[i].metric
-}
-
-func (fake *FakeSender) FGaugeReturns(result1 error) {
-	fake.FGaugeStub = nil
-	fake.fGaugeReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) FGaugeReturnsOnCall(i int, result1 error) {
-	fake.FGaugeStub = nil
-	if fake.fGaugeReturnsOnCall == nil {
-		fake.fGaugeReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.fGaugeReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeSender) Incr(metric metrics.CounterMetric) error {
 	fake.incrMutex.Lock()
 	ret, specificReturn := fake.incrReturnsOnCall[len(fake.incrArgsForCall)]
@@ -207,54 +137,6 @@ func (fake *FakeSender) IncrReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.incrReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) Timing(metric metrics.TimingMetric) error {
-	fake.timingMutex.Lock()
-	ret, specificReturn := fake.timingReturnsOnCall[len(fake.timingArgsForCall)]
-	fake.timingArgsForCall = append(fake.timingArgsForCall, struct {
-		metric metrics.TimingMetric
-	}{metric})
-	fake.recordInvocation("Timing", []interface{}{metric})
-	fake.timingMutex.Unlock()
-	if fake.TimingStub != nil {
-		return fake.TimingStub(metric)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.timingReturns.result1
-}
-
-func (fake *FakeSender) TimingCallCount() int {
-	fake.timingMutex.RLock()
-	defer fake.timingMutex.RUnlock()
-	return len(fake.timingArgsForCall)
-}
-
-func (fake *FakeSender) TimingArgsForCall(i int) metrics.TimingMetric {
-	fake.timingMutex.RLock()
-	defer fake.timingMutex.RUnlock()
-	return fake.timingArgsForCall[i].metric
-}
-
-func (fake *FakeSender) TimingReturns(result1 error) {
-	fake.TimingStub = nil
-	fake.timingReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) TimingReturnsOnCall(i int, result1 error) {
-	fake.TimingStub = nil
-	if fake.timingReturnsOnCall == nil {
-		fake.timingReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.timingReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -312,12 +194,8 @@ func (fake *FakeSender) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.gaugeMutex.RLock()
 	defer fake.gaugeMutex.RUnlock()
-	fake.fGaugeMutex.RLock()
-	defer fake.fGaugeMutex.RUnlock()
 	fake.incrMutex.RLock()
 	defer fake.incrMutex.RUnlock()
-	fake.timingMutex.RLock()
-	defer fake.timingMutex.RUnlock()
 	fake.precisionTimingMutex.RLock()
 	defer fake.precisionTimingMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

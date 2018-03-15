@@ -49,7 +49,7 @@ var _ = Describe("App", func() {
 				Whitelist:            whitelist,
 			},
 			processors,
-			sender,
+			[]metrics.Sender{sender},
 		)
 		app.eventFetcher = fetcher
 		app.appEventChan = appEventChan

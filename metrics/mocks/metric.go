@@ -28,6 +28,15 @@ type FakeMetric struct {
 	nameReturnsOnCall map[int]struct {
 		result1 string
 	}
+	GetLabelsStub        func() map[string]string
+	getLabelsMutex       sync.RWMutex
+	getLabelsArgsForCall []struct{}
+	getLabelsReturns     struct {
+		result1 map[string]string
+	}
+	getLabelsReturnsOnCall map[int]struct {
+		result1 map[string]string
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -120,6 +129,46 @@ func (fake *FakeMetric) NameReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
+func (fake *FakeMetric) GetLabels() map[string]string {
+	fake.getLabelsMutex.Lock()
+	ret, specificReturn := fake.getLabelsReturnsOnCall[len(fake.getLabelsArgsForCall)]
+	fake.getLabelsArgsForCall = append(fake.getLabelsArgsForCall, struct{}{})
+	fake.recordInvocation("GetLabels", []interface{}{})
+	fake.getLabelsMutex.Unlock()
+	if fake.GetLabelsStub != nil {
+		return fake.GetLabelsStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.getLabelsReturns.result1
+}
+
+func (fake *FakeMetric) GetLabelsCallCount() int {
+	fake.getLabelsMutex.RLock()
+	defer fake.getLabelsMutex.RUnlock()
+	return len(fake.getLabelsArgsForCall)
+}
+
+func (fake *FakeMetric) GetLabelsReturns(result1 map[string]string) {
+	fake.GetLabelsStub = nil
+	fake.getLabelsReturns = struct {
+		result1 map[string]string
+	}{result1}
+}
+
+func (fake *FakeMetric) GetLabelsReturnsOnCall(i int, result1 map[string]string) {
+	fake.GetLabelsStub = nil
+	if fake.getLabelsReturnsOnCall == nil {
+		fake.getLabelsReturnsOnCall = make(map[int]struct {
+			result1 map[string]string
+		})
+	}
+	fake.getLabelsReturnsOnCall[i] = struct {
+		result1 map[string]string
+	}{result1}
+}
+
 func (fake *FakeMetric) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -127,6 +176,8 @@ func (fake *FakeMetric) Invocations() map[string][][]interface{} {
 	defer fake.sendMutex.RUnlock()
 	fake.nameMutex.RLock()
 	defer fake.nameMutex.RUnlock()
+	fake.getLabelsMutex.RLock()
+	defer fake.getLabelsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
