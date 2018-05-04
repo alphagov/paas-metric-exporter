@@ -79,7 +79,19 @@ func (m GaugeMetric) Name() string {
 }
 
 func (m GaugeMetric) GetLabels() map[string]string {
-	return m.Metadata
+	labels := map[string]string{
+		"App":          m.App,
+		"CellId":       m.CellId,
+		"GUID":         m.GUID,
+		"Instance":     m.Instance,
+		"Job":          m.Job,
+		"Organisation": m.Organisation,
+		"Space":        m.Space,
+	}
+	for k, v := range m.Metadata {
+		labels[k] = v
+	}
+	return labels
 }
 
 func (m GaugeMetric) Send(sender Sender) error {
@@ -105,7 +117,19 @@ func (m PrecisionTimingMetric) Name() string {
 }
 
 func (m PrecisionTimingMetric) GetLabels() map[string]string {
-	return m.Metadata
+	labels := map[string]string{
+		"App":          m.App,
+		"CellId":       m.CellId,
+		"GUID":         m.GUID,
+		"Instance":     m.Instance,
+		"Job":          m.Job,
+		"Organisation": m.Organisation,
+		"Space":        m.Space,
+	}
+	for k, v := range m.Metadata {
+		labels[k] = v
+	}
+	return labels
 }
 
 func (m PrecisionTimingMetric) Send(sender Sender) error {

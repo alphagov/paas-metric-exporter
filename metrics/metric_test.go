@@ -4,6 +4,7 @@ import (
 	. "github.com/alphagov/paas-metric-exporter/metrics"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	"time"
@@ -73,6 +74,61 @@ var _ = Describe("Metric", func() {
 			Expect(metric.Value).To(Equal(100 * time.Millisecond))
 		})
 	})
+
+	DescribeTable("Metrics should return labels",
+		func(metric Metric) {
+			labels := metric.GetLabels()
+			Expect(labels["App"]).To(Equal("APP_NAME"))
+			Expect(labels["CellId"]).To(Equal("CELL_ID"))
+			Expect(labels["GUID"]).To(Equal("APP_GUID"))
+			Expect(labels["Instance"]).To(Equal("INSTANCE_IDX"))
+			Expect(labels["Job"]).To(Equal("JOB_NAME"))
+			Expect(labels["Organisation"]).To(Equal("ORG_NAME"))
+			Expect(labels["Space"]).To(Equal("SPACE_NAME"))
+			Expect(labels["META_KEY"]).To(Equal("META_VALUE"))
+			_, hasMetricNameAsLabel := labels["Metric"]
+			Expect(hasMetricNameAsLabel).To(BeFalse())
+		},
+		Entry("GaugeMetric", GaugeMetric{
+			App:          "APP_NAME",
+			CellId:       "CELL_ID",
+			GUID:         "APP_GUID",
+			Instance:     "INSTANCE_IDX",
+			Job:          "JOB_NAME",
+			Metric:       "METRIC_NAME",
+			Organisation: "ORG_NAME",
+			Space:        "SPACE_NAME",
+			Metadata: map[string]string{
+				"META_KEY": "META_VALUE",
+			},
+		}),
+		Entry("PrecisionTimingMetric", &PrecisionTimingMetric{
+			App:          "APP_NAME",
+			CellId:       "CELL_ID",
+			GUID:         "APP_GUID",
+			Instance:     "INSTANCE_IDX",
+			Job:          "JOB_NAME",
+			Metric:       "METRIC_NAME",
+			Organisation: "ORG_NAME",
+			Space:        "SPACE_NAME",
+			Metadata: map[string]string{
+				"META_KEY": "META_VALUE",
+			},
+		}),
+		Entry("CounterMetric", &CounterMetric{
+			App:          "APP_NAME",
+			CellId:       "CELL_ID",
+			GUID:         "APP_GUID",
+			Instance:     "INSTANCE_IDX",
+			Job:          "JOB_NAME",
+			Metric:       "METRIC_NAME",
+			Organisation: "ORG_NAME",
+			Space:        "SPACE_NAME",
+			Metadata: map[string]string{
+				"META_KEY": "META_VALUE",
+			},
+		}),
+	)
 
 	Describe("#Send", func() {
 		BeforeEach(func() {
