@@ -23,7 +23,7 @@ var _ = Describe("App", func() {
 		fetcher      *events_mocks.FakeFetcherProcess
 		proc1        *proc_mocks.FakeProcessor
 		proc2        *proc_mocks.FakeProcessor
-		statsdClient *metrics_mocks.FakeStatsdClient
+		sender       *metrics_mocks.FakeSender
 		app          *Application
 		appEventChan chan *events.AppEvent
 		errorChan    chan error
@@ -40,7 +40,7 @@ var _ = Describe("App", func() {
 			sonde_events.Envelope_ContainerMetric: proc1,
 			sonde_events.Envelope_LogMessage:      proc2,
 		}
-		statsdClient = &metrics_mocks.FakeStatsdClient{}
+		sender = &metrics_mocks.FakeSender{}
 		appEventChan = make(chan *events.AppEvent, 10)
 		errorChan = make(chan error)
 		app = NewApplication(
@@ -49,7 +49,7 @@ var _ = Describe("App", func() {
 				Whitelist:            whitelist,
 			},
 			processors,
-			statsdClient,
+			[]metrics.Sender{sender},
 		)
 		app.eventFetcher = fetcher
 		app.appEventChan = appEventChan
@@ -94,7 +94,7 @@ var _ = Describe("App", func() {
 			Expect(processedEvent).To(Equal(event2))
 		}, 3)
 
-		It("sends processed metrics to the statsd client", func() {
+		It("sends processed metrics to the sender", func() {
 			metric1 := &metrics.GaugeMetric{Metric: "metric1", Value: 1}
 			metric2 := &metrics.GaugeMetric{Metric: "metric2", Value: 2}
 			proc1.ProcessReturnsOnCall(0, []metrics.Metric{metric1, metric2}, nil)
@@ -108,16 +108,14 @@ var _ = Describe("App", func() {
 			appEventChan <- event
 
 			Eventually(func() int {
-				return statsdClient.GaugeCallCount()
+				return sender.GaugeCallCount()
 			}).Should(Equal(2))
 
-			statName0, statValue0 := statsdClient.GaugeArgsForCall(0)
-			Expect(statName0).To(Equal("metric1"))
-			Expect(statValue0).To(Equal(int64(1)))
+			actualMetric1 := sender.GaugeArgsForCall(0)
+			Expect(actualMetric1).To(Equal(*metric1))
 
-			statName1, statValue1 := statsdClient.GaugeArgsForCall(1)
-			Expect(statName1).To(Equal("metric2"))
-			Expect(statValue1).To(Equal(int64(2)))
+			actualMetric2 := sender.GaugeArgsForCall(1)
+			Expect(actualMetric2).To(Equal(*metric2))
 		}, 3)
 
 		It("should handle metrics sending errors", func() {
@@ -208,14 +206,14 @@ var _ = Describe("App", func() {
 			appEventChan <- event
 
 			Eventually(func() int {
-				return statsdClient.GaugeCallCount()
+				return sender.GaugeCallCount()
 			}).Should(Equal(1))
 			Consistently(func() int {
-				return statsdClient.GaugeCallCount()
+				return sender.GaugeCallCount()
 			}).Should(Equal(1))
 
-			statName0, _ := statsdClient.GaugeArgsForCall(0)
-			Expect(statName0).To(Equal("whitelisted.metric"))
+			actualMetric := sender.GaugeArgsForCall(0)
+			Expect(actualMetric).To(Equal(*metric2))
 		}, 3)
 
 	})

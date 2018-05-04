@@ -8,11 +8,10 @@ import (
 )
 
 type FakeMetric struct {
-	SendStub        func(sender metrics.StatsdClient, template string) error
+	SendStub        func(sender metrics.Sender) error
 	sendMutex       sync.RWMutex
 	sendArgsForCall []struct {
-		sender   metrics.StatsdClient
-		template string
+		sender metrics.Sender
 	}
 	sendReturns struct {
 		result1 error
@@ -29,21 +28,29 @@ type FakeMetric struct {
 	nameReturnsOnCall map[int]struct {
 		result1 string
 	}
+	GetLabelsStub        func() map[string]string
+	getLabelsMutex       sync.RWMutex
+	getLabelsArgsForCall []struct{}
+	getLabelsReturns     struct {
+		result1 map[string]string
+	}
+	getLabelsReturnsOnCall map[int]struct {
+		result1 map[string]string
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeMetric) Send(sender metrics.StatsdClient, template string) error {
+func (fake *FakeMetric) Send(sender metrics.Sender) error {
 	fake.sendMutex.Lock()
 	ret, specificReturn := fake.sendReturnsOnCall[len(fake.sendArgsForCall)]
 	fake.sendArgsForCall = append(fake.sendArgsForCall, struct {
-		sender   metrics.StatsdClient
-		template string
-	}{sender, template})
-	fake.recordInvocation("Send", []interface{}{sender, template})
+		sender metrics.Sender
+	}{sender})
+	fake.recordInvocation("Send", []interface{}{sender})
 	fake.sendMutex.Unlock()
 	if fake.SendStub != nil {
-		return fake.SendStub(sender, template)
+		return fake.SendStub(sender)
 	}
 	if specificReturn {
 		return ret.result1
@@ -57,10 +64,10 @@ func (fake *FakeMetric) SendCallCount() int {
 	return len(fake.sendArgsForCall)
 }
 
-func (fake *FakeMetric) SendArgsForCall(i int) (metrics.StatsdClient, string) {
+func (fake *FakeMetric) SendArgsForCall(i int) metrics.Sender {
 	fake.sendMutex.RLock()
 	defer fake.sendMutex.RUnlock()
-	return fake.sendArgsForCall[i].sender, fake.sendArgsForCall[i].template
+	return fake.sendArgsForCall[i].sender
 }
 
 func (fake *FakeMetric) SendReturns(result1 error) {
@@ -122,6 +129,46 @@ func (fake *FakeMetric) NameReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
+func (fake *FakeMetric) GetLabels() map[string]string {
+	fake.getLabelsMutex.Lock()
+	ret, specificReturn := fake.getLabelsReturnsOnCall[len(fake.getLabelsArgsForCall)]
+	fake.getLabelsArgsForCall = append(fake.getLabelsArgsForCall, struct{}{})
+	fake.recordInvocation("GetLabels", []interface{}{})
+	fake.getLabelsMutex.Unlock()
+	if fake.GetLabelsStub != nil {
+		return fake.GetLabelsStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.getLabelsReturns.result1
+}
+
+func (fake *FakeMetric) GetLabelsCallCount() int {
+	fake.getLabelsMutex.RLock()
+	defer fake.getLabelsMutex.RUnlock()
+	return len(fake.getLabelsArgsForCall)
+}
+
+func (fake *FakeMetric) GetLabelsReturns(result1 map[string]string) {
+	fake.GetLabelsStub = nil
+	fake.getLabelsReturns = struct {
+		result1 map[string]string
+	}{result1}
+}
+
+func (fake *FakeMetric) GetLabelsReturnsOnCall(i int, result1 map[string]string) {
+	fake.GetLabelsStub = nil
+	if fake.getLabelsReturnsOnCall == nil {
+		fake.getLabelsReturnsOnCall = make(map[int]struct {
+			result1 map[string]string
+		})
+	}
+	fake.getLabelsReturnsOnCall[i] = struct {
+		result1 map[string]string
+	}{result1}
+}
+
 func (fake *FakeMetric) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -129,6 +176,8 @@ func (fake *FakeMetric) Invocations() map[string][][]interface{} {
 	defer fake.sendMutex.RUnlock()
 	fake.nameMutex.RLock()
 	defer fake.nameMutex.RUnlock()
+	fake.getLabelsMutex.RLock()
+	defer fake.getLabelsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
