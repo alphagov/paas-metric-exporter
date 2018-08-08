@@ -79,10 +79,8 @@ var _ = Describe("Metric", func() {
 		func(metric Metric) {
 			labels := metric.GetLabels()
 			Expect(labels["App"]).To(Equal("APP_NAME"))
-			Expect(labels["CellId"]).To(Equal("CELL_ID"))
 			Expect(labels["GUID"]).To(Equal("APP_GUID"))
 			Expect(labels["Instance"]).To(Equal("INSTANCE_IDX"))
-			Expect(labels["Job"]).To(Equal("JOB_NAME"))
 			Expect(labels["Organisation"]).To(Equal("ORG_NAME"))
 			Expect(labels["Space"]).To(Equal("SPACE_NAME"))
 			Expect(labels["META_KEY"]).To(Equal("META_VALUE"))
@@ -91,10 +89,8 @@ var _ = Describe("Metric", func() {
 		},
 		Entry("GaugeMetric", GaugeMetric{
 			App:          "APP_NAME",
-			CellId:       "CELL_ID",
 			GUID:         "APP_GUID",
 			Instance:     "INSTANCE_IDX",
-			Job:          "JOB_NAME",
 			Metric:       "METRIC_NAME",
 			Organisation: "ORG_NAME",
 			Space:        "SPACE_NAME",
@@ -104,10 +100,8 @@ var _ = Describe("Metric", func() {
 		}),
 		Entry("PrecisionTimingMetric", &PrecisionTimingMetric{
 			App:          "APP_NAME",
-			CellId:       "CELL_ID",
 			GUID:         "APP_GUID",
 			Instance:     "INSTANCE_IDX",
-			Job:          "JOB_NAME",
 			Metric:       "METRIC_NAME",
 			Organisation: "ORG_NAME",
 			Space:        "SPACE_NAME",
@@ -117,10 +111,8 @@ var _ = Describe("Metric", func() {
 		}),
 		Entry("CounterMetric", &CounterMetric{
 			App:          "APP_NAME",
-			CellId:       "CELL_ID",
 			GUID:         "APP_GUID",
 			Instance:     "INSTANCE_IDX",
-			Job:          "JOB_NAME",
 			Metric:       "METRIC_NAME",
 			Organisation: "ORG_NAME",
 			Space:        "SPACE_NAME",

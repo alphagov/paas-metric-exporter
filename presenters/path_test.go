@@ -11,13 +11,11 @@ import (
 var _ = Describe("PathPresenter", func() {
 	Describe("#Present", func() {
 		It("should pass all data through to the template", func() {
-			presenter, _ := NewPathPresenter("{{.Organisation}}.{{.Space}}.{{.App}}.{{.CellId}}.{{.GUID}}.{{.Instance}}.{{.Job}}.{{.Metric}}")
+			presenter, _ := NewPathPresenter("{{.Organisation}}.{{.Space}}.{{.App}}.{{.GUID}}.{{.Instance}}.{{.Metric}}")
 			data := CounterMetric{
 				App:          "app",
-				CellId:       "cellid",
 				GUID:         "guid",
 				Instance:     "instance",
-				Job:          "job",
 				Metric:       "widgets",
 				Space:        "space",
 				Organisation: "org",
@@ -25,7 +23,7 @@ var _ = Describe("PathPresenter", func() {
 			output, err := presenter.Present(data)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(output).To(Equal("org.space.app.cellid.guid.instance.job.widgets"))
+			Expect(output).To(Equal("org.space.app.guid.instance.widgets"))
 		})
 
 		It("should present simple metric name", func() {

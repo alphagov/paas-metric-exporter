@@ -38,8 +38,6 @@ func createContainerMetric(appEvent *events.AppEvent, metric string, value int64
 		Instance:     strconv.Itoa(int(appEvent.Envelope.GetContainerMetric().GetInstanceIndex())),
 		App:          appEvent.App.Name,
 		GUID:         appEvent.App.Guid,
-		CellId:       appEvent.Envelope.GetIndex(),
-		Job:          appEvent.Envelope.GetJob(),
 		Organisation: appEvent.App.SpaceData.Entity.OrgData.Entity.Name,
 		Space:        appEvent.App.SpaceData.Entity.Name,
 		Metric:       metric,

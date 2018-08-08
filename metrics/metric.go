@@ -24,10 +24,8 @@ type Metric interface {
 
 type CounterMetric struct {
 	App          string
-	CellId       string
 	GUID         string
 	Instance     string
-	Job          string
 	Metric       string
 	Organisation string
 	Space        string
@@ -43,10 +41,8 @@ func (m CounterMetric) Name() string {
 func (m CounterMetric) GetLabels() map[string]string {
 	labels := map[string]string{
 		"App":          m.App,
-		"CellId":       m.CellId,
 		"GUID":         m.GUID,
 		"Instance":     m.Instance,
-		"Job":          m.Job,
 		"Organisation": m.Organisation,
 		"Space":        m.Space,
 	}
@@ -62,10 +58,8 @@ func (m CounterMetric) Send(sender Sender) error {
 
 type GaugeMetric struct {
 	App          string
-	CellId       string
 	GUID         string
 	Instance     string
-	Job          string
 	Metric       string
 	Organisation string
 	Space        string
@@ -81,10 +75,8 @@ func (m GaugeMetric) Name() string {
 func (m GaugeMetric) GetLabels() map[string]string {
 	labels := map[string]string{
 		"App":          m.App,
-		"CellId":       m.CellId,
 		"GUID":         m.GUID,
 		"Instance":     m.Instance,
-		"Job":          m.Job,
 		"Organisation": m.Organisation,
 		"Space":        m.Space,
 	}
@@ -100,10 +92,8 @@ func (m GaugeMetric) Send(sender Sender) error {
 
 type PrecisionTimingMetric struct {
 	App          string
-	CellId       string
 	GUID         string
 	Instance     string
-	Job          string
 	Metric       string
 	Organisation string
 	Space        string
@@ -119,10 +109,8 @@ func (m PrecisionTimingMetric) Name() string {
 func (m PrecisionTimingMetric) GetLabels() map[string]string {
 	labels := map[string]string{
 		"App":          m.App,
-		"CellId":       m.CellId,
 		"GUID":         m.GUID,
 		"Instance":     m.Instance,
-		"Job":          m.Job,
 		"Organisation": m.Organisation,
 		"Space":        m.Space,
 	}
