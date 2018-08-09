@@ -13,11 +13,12 @@ type PrometheusSender struct {
 	counterVecs   map[string]prometheus.CounterVec
 	gaugeVecs     map[string]prometheus.GaugeVec
 	histogramVecs map[string]prometheus.HistogramVec
+	registerer    prometheus.Registerer
 }
 
 var _ metrics.Sender = &PrometheusSender{}
 
-func NewPrometheusSender() *PrometheusSender {
+func NewPrometheusSender(registerer prometheus.Registerer) *PrometheusSender {
 	presenter := presenters.NewSnakeCasePresenter()
 
 	counterVecs := make(map[string]prometheus.CounterVec)
@@ -29,6 +30,7 @@ func NewPrometheusSender() *PrometheusSender {
 		counterVecs,
 		gaugeVecs,
 		histogramVecs,
+		registerer,
 	}
 }
 
@@ -42,7 +44,7 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 		options := prometheus.GaugeOpts{Name: name, Help: " "}
 		gaugeVec = *prometheus.NewGaugeVec(options, labelNames)
 
-		prometheus.MustRegister(gaugeVec)
+		s.registerer.MustRegister(gaugeVec)
 		s.gaugeVecs[name] = gaugeVec
 	}
 
@@ -64,7 +66,7 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 		options := prometheus.CounterOpts{Name: name, Help: " "}
 		counterVec = *prometheus.NewCounterVec(options, labelNames)
 
-		prometheus.MustRegister(counterVec)
+		s.registerer.MustRegister(counterVec)
 		s.counterVecs[name] = counterVec
 	}
 
@@ -86,7 +88,7 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 		options := prometheus.HistogramOpts{Name: name, Help: " "}
 		histogramVec = *prometheus.NewHistogramVec(options, labelNames)
 
-		prometheus.MustRegister(histogramVec)
+		s.registerer.MustRegister(histogramVec)
 		s.histogramVecs[name] = histogramVec
 	}
 

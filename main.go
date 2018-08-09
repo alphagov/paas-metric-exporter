@@ -12,6 +12,7 @@ import (
 	"github.com/alphagov/paas-metric-exporter/senders"
 	"github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
+	"github.com/prometheus/client_golang/prometheus"
 	quipo_statsd "github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -87,7 +88,10 @@ func main() {
 		metricSenders = append(metricSenders, sender)
 	} else {
 		if *enablePrometheus {
-			metricSenders = append(metricSenders, senders.NewPrometheusSender())
+			metricSenders = append(
+				metricSenders,
+				senders.NewPrometheusSender(prometheus.DefaultRegisterer),
+			)
 		}
 
 		if *enableStatsd {

@@ -14,14 +14,21 @@ import (
 )
 
 var _ = Describe("PrometheusSender", func() {
-	var sender Sender
+	var (
+		registerer prometheus.Registerer
+		gatherer   prometheus.Gatherer
+		sender     Sender
+	)
 	BeforeEach(func() {
-		sender = NewPrometheusSender()
+		registry := prometheus.NewRegistry()
+		gatherer = registry
+		registerer = registry
+		sender = NewPrometheusSender(registerer)
 	})
 
 	Describe("#Incr", func() {
 		It("sends a counter metric to prometheus", func() {
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.Incr(CounterMetric{
 					Metric: "counter_incremented_once",
 					Value:  1,
@@ -45,7 +52,7 @@ var _ = Describe("PrometheusSender", func() {
 		})
 
 		It("presents metric names and label names as snake case", func() {
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.Incr(CounterMetric{
 					Metric: "fooBarBaz",
 					Value:  1,
@@ -78,7 +85,7 @@ var _ = Describe("PrometheusSender", func() {
 				App:    "some_value",
 			}
 
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.Incr(counterMetric)
 				sender.Incr(counterMetric)
 				sender.Incr(counterMetric)
@@ -94,7 +101,7 @@ var _ = Describe("PrometheusSender", func() {
 		})
 
 		It("includes Metadata as additional labels", func() {
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.Incr(CounterMetric{
 					Metric:   "response",
 					Metadata: map[string]string{"statusRange": "2xx"},
@@ -116,7 +123,7 @@ var _ = Describe("PrometheusSender", func() {
 
 	Describe("#Gauge", func() {
 		It("sends a floating point gauge metric to prometheus", func() {
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.Gauge(GaugeMetric{
 					Metric: "my_gauge",
 					Value:  3,
@@ -137,7 +144,7 @@ var _ = Describe("PrometheusSender", func() {
 
 	Describe("#PrecisionTiming", func() {
 		It("sends a histogram metric into a sensible bucket in prometheus", func() {
-			families := captureMetrics(func() {
+			families := captureMetrics(gatherer, func() {
 				sender.PrecisionTiming(PrecisionTimingMetric{
 					Metric: "my_precise_time",
 					Value:  time.Duration(3142) * time.Millisecond,
@@ -172,9 +179,7 @@ var _ = Describe("PrometheusSender", func() {
 
 type metric []*io_prometheus_client.MetricFamily
 
-func captureMetrics(callback func()) metric {
-	gatherer := prometheus.DefaultGatherer
-
+func captureMetrics(gatherer prometheus.Gatherer, callback func()) metric {
 	before, _ := gatherer.Gather()
 	callback()
 	after, _ := gatherer.Gather()
