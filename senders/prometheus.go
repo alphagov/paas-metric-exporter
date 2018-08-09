@@ -9,28 +9,66 @@ import (
 )
 
 type PrometheusSender struct {
-	presenter     presenters.SnakeCasePresenter
-	counterVecs   map[string]prometheus.CounterVec
-	gaugeVecs     map[string]prometheus.GaugeVec
-	histogramVecs map[string]prometheus.HistogramVec
-	registerer    prometheus.Registerer
+	presenter        presenters.SnakeCasePresenter
+	counterVecs      map[string]prometheus.CounterVec
+	counterExpirer   *MetricsExpirer
+	gaugeVecs        map[string]prometheus.GaugeVec
+	gaugeExpirer     *MetricsExpirer
+	histogramVecs    map[string]prometheus.HistogramVec
+	histogramExpirer *MetricsExpirer
+	registerer       prometheus.Registerer
 }
 
 var _ metrics.Sender = &PrometheusSender{}
 
-func NewPrometheusSender(registerer prometheus.Registerer) *PrometheusSender {
+func NewPrometheusSender(
+	registerer prometheus.Registerer,
+	metricTTL time.Duration,
+) *PrometheusSender {
 	presenter := presenters.NewSnakeCasePresenter()
 
 	counterVecs := make(map[string]prometheus.CounterVec)
+	counterExpirer := NewMetricsExpirer(
+		func(name string, labels prometheus.Labels) {
+			if v, ok := counterVecs[name]; ok {
+				v.Delete(labels)
+			}
+		},
+		metricTTL,
+		metricTTL,
+	)
+
 	gaugeVecs := make(map[string]prometheus.GaugeVec)
+	gaugeExpirer := NewMetricsExpirer(
+		func(name string, labels prometheus.Labels) {
+			if v, ok := gaugeVecs[name]; ok {
+				v.Delete(labels)
+			}
+		},
+		metricTTL,
+		metricTTL,
+	)
+
 	histogramVecs := make(map[string]prometheus.HistogramVec)
+	histogramExpirer := NewMetricsExpirer(
+		func(name string, labels prometheus.Labels) {
+			if v, ok := histogramVecs[name]; ok {
+				v.Delete(labels)
+			}
+		},
+		metricTTL,
+		metricTTL,
+	)
 
 	return &PrometheusSender{
-		presenter,
-		counterVecs,
-		gaugeVecs,
-		histogramVecs,
-		registerer,
+		presenter:        presenter,
+		counterVecs:      counterVecs,
+		counterExpirer:   counterExpirer,
+		gaugeVecs:        gaugeVecs,
+		gaugeExpirer:     gaugeExpirer,
+		histogramVecs:    histogramVecs,
+		histogramExpirer: histogramExpirer,
+		registerer:       registerer,
 	}
 }
 
@@ -52,6 +90,8 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 	value := float64(metric.Value)
 
 	gaugeVec.With(labels).Set(value)
+
+	s.gaugeExpirer.SeenMetric(name, labels)
 
 	return nil
 }
@@ -75,6 +115,8 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 
 	counterVec.With(labels).Add(value)
 
+	s.counterExpirer.SeenMetric(name, labels)
+
 	return nil
 }
 
@@ -96,6 +138,8 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 	value := float64(metric.Value) / float64(time.Second)
 
 	histogramVec.With(labels).Observe(value)
+
+	s.histogramExpirer.SeenMetric(name, labels)
 
 	return nil
 }
