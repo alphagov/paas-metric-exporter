@@ -66,10 +66,17 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/mitchellh/hashstructure"
+  packages = ["."]
+  revision = "2bca23e0e452137f789efbc8610126fd8b94f73b"
+
+[[projects]]
   name = "github.com/onsi/ginkgo"
   packages = [
     ".",
     "config",
+    "extensions/table",
     "internal/codelocation",
     "internal/containernode",
     "internal/failer",
@@ -188,6 +195,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb8e22c32a96bebec59e7bc70aa269d0f7f371b5aa7be32ffa30d611de8a02ae"
+  inputs-digest = "3d5f92522d6ab96ba27bafa89d9380c7af99c106045812858571b61b4fa066a7"
   solver-name = "gps-cdcl"
   solver-version = 1
