@@ -93,7 +93,7 @@ func main() {
 				metricSenders,
 				senders.NewPrometheusSender(
 					prometheus.DefaultRegisterer,
-					prometheusMetricTTL*time.Second,
+					time.Duration(*prometheusMetricTTL)*time.Second,
 				),
 			)
 		}
