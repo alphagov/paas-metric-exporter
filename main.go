@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	quipo_statsd "github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"os"
 )
 
 var (
@@ -32,6 +32,7 @@ var (
 	prometheusMetricTTL = kingpin.Flag("prometheus-metric-ttl", "Time that a metric is kept in the prometheus exporter.").Default("60").OverrideDefaultFromEnvar("PROMETHEUS_METRIC_TTL").Int()
 	enableStatsd        = kingpin.Flag("enable-statsd", "Enable the statsd sender.").Default("true").OverrideDefaultFromEnvar("ENABLE_STATSD").Bool()
 	enablePrometheus    = kingpin.Flag("enable-prometheus", "Enable the prometheus sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_PROMETHEUS").Bool()
+	enableLoggregator   = kingpin.Flag("enable-loggregator", "Enable the Loggregator sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_LOGGREGATOR").Bool()
 )
 
 func normalizePrefix(prefix string) string {
@@ -80,14 +81,28 @@ func main() {
 		sonde_events.Envelope_HttpStartStop:   &processors.HttpStartStopProcessor{},
 	}
 
-	var sender metrics.Sender
-	var err error
 	var metricSenders []metrics.Sender
-
 	if *debug {
-		sender, err = senders.NewDebugSender(*statsdPrefix, config.Template)
-		metricSenders = append(metricSenders, sender)
+		debugSender, err := senders.NewDebugSender(*statsdPrefix, config.Template)
+		if err != nil {
+			os.Stderr.WriteString(err.Error() + "\n")
+			os.Exit(1)
+		}
+		metricSenders = append(metricSenders, debugSender)
 	} else {
+		if *enableStatsd {
+			client := quipo_statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
+			client.CreateSocket()
+
+			statsDSender, err := senders.NewStatsdSender(client, config.Template)
+			if err != nil {
+				os.Stderr.WriteString(err.Error() + "\n")
+				os.Exit(1)
+			}
+
+			metricSenders = append(metricSenders, statsDSender)
+		}
+
 		if *enablePrometheus {
 			metricSenders = append(
 				metricSenders,
@@ -98,18 +113,20 @@ func main() {
 			)
 		}
 
-		if *enableStatsd {
-			client := quipo_statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
-			client.CreateSocket()
+		if *enableLoggregator {
+			loggregatorSender, err := senders.NewLoggregatorSender(
+				app.DefaultLoggregatorConfig.MetronURL,
+				app.DefaultLoggregatorConfig.CACertPath,
+				app.DefaultLoggregatorConfig.ClientCertPath,
+				app.DefaultLoggregatorConfig.ClientKeyPath,
+			)
+			if err != nil {
+				os.Stderr.WriteString(err.Error() + "\n")
+				os.Exit(1)
+			}
 
-			sender, err = senders.NewStatsdSender(client, config.Template)
-			metricSenders = append(metricSenders, sender)
+			metricSenders = append(metricSenders, loggregatorSender)
 		}
-	}
-
-	if err != nil {
-		os.Stderr.WriteString(err.Error() + "\n")
-		os.Exit(1)
 	}
 
 	app := app.NewApplication(config, processors, metricSenders)

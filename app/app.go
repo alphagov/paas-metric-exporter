@@ -23,6 +23,21 @@ type Config struct {
 	Template             string
 	EnablePrometheus     bool
 	PrometheusPort       int
+	Loggregator          LoggregatorConfig
+}
+
+type LoggregatorConfig struct {
+	MetronURL      string
+	CACertPath     string
+	ClientCertPath string
+	ClientKeyPath  string
+}
+
+var DefaultLoggregatorConfig = LoggregatorConfig{
+	MetronURL:      "localhost:3458",
+	CACertPath:     "/var/vcap/jobs/metric-exporter/config/loggregator.ca_cert.crt",
+	ClientCertPath: "/var/vcap/jobs/metric-exporter/config/loggregator.client_cert.crt",
+	ClientKeyPath:  "/var/vcap/jobs/metric-exporter/config/loggregator.client_key.key",
 }
 
 // Application is the main application logic
