@@ -31,9 +31,7 @@ func NewLoggregatorSender(url, caPath, certPath, keyPath string) (*LoggregatorSe
 
 func (ls *LoggregatorSender) Gauge(metric metrics.GaugeMetric) error {
 	ls.IngressClient.EmitGauge(
-		//TODO: The metrics package doesn't yet have a way to set the unit, so
-		// we hardcode it here to "gauge"
-		loggregator.WithGaugeValue(metric.Name(), float64(metric.Value), "gauge"),
+		loggregator.WithGaugeValue(metric.Name(), float64(metric.Value), metric.Unit),
 		loggregator.WithGaugeSourceInfo(metric.GUID, metric.Instance),
 		loggregator.WithEnvelopeTags(metric.GetLabels()),
 	)

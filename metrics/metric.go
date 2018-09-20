@@ -72,6 +72,7 @@ type GaugeMetric struct {
 	Metadata     map[string]string
 
 	Value int64
+	Unit  string
 }
 
 func (m GaugeMetric) Name() string {

@@ -63,6 +63,7 @@ var _ = Describe("LoggregatorSender", func() {
 			err = sender.Gauge(metrics.GaugeMetric{
 				Metric:   "cpu",
 				Value:    100,
+				Unit:     "percentage",
 				GUID:     "guid2",
 				Instance: "0",
 			})
@@ -78,7 +79,7 @@ var _ = Describe("LoggregatorSender", func() {
 			Expect(envelope.GetGauge().GetMetrics()).NotTo(BeNil())
 			Expect(envelope.GetGauge().GetMetrics()).To(HaveKey("cpu"))
 			Expect(envelope.GetGauge().GetMetrics()["cpu"].Value).To(Equal(float64(100)))
-			Expect(envelope.GetGauge().GetMetrics()["cpu"].Unit).To(Equal("gauge"))
+			Expect(envelope.GetGauge().GetMetrics()["cpu"].Unit).To(Equal("percentage"))
 		})
 	})
 
