@@ -2,6 +2,27 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/go-diodes"
+  packages = ["."]
+  revision = "72629b5276e3e1512ff8c943470848634bf0cabd"
+
+[[projects]]
+  name = "code.cloudfoundry.org/go-loggregator"
+  packages = [
+    ".",
+    "rpc/loggregator_v2"
+  ]
+  revision = "b5cb096c92dd8308896b3df4099f399ffdc045a8"
+  version = "v7.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/rfc5424"
+  packages = ["."]
+  revision = "236a6d29298aea12f69978f33393d12465abc429"
+
+[[projects]]
   name = "github.com/alecthomas/template"
   packages = [
     ".",
@@ -47,12 +68,22 @@
     "proto",
     "protoc-gen-gogo/descriptor"
   ]
-  revision = "83faaee7bbbdf0c59310ec67d340bc0cbe77053f"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  revision = "c3cefd437628a0b7d31b34fe44b3a7a540e98527"
+  packages = [
+    "jsonpb",
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/struct",
+    "ptypes/timestamp"
+  ]
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -62,14 +93,14 @@
 [[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
-  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
-  version = "v1.0.0"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
   name = "github.com/mitchellh/hashstructure"
   packages = ["."]
-  revision = "2bca23e0e452137f789efbc8610126fd8b94f73b"
+  revision = "a38c50148365edc8df43c1580c48fb2b3a1e9cd7"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/onsi/ginkgo"
@@ -159,9 +190,18 @@
   version = "1.4.0"
 
 [[projects]]
+  branch = "master"
   name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "07b51741c1d6423d4a6abab1c49940ec09cb1aaf"
+  packages = [
+    "context",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "trace"
+  ]
+  revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
 
 [[projects]]
   name = "golang.org/x/oauth2"
@@ -171,6 +211,33 @@
     "internal"
   ]
   revision = "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "1561086e645b2809fb9f8a1e2a38160bf8d53bf4"
+
+[[projects]]
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -187,6 +254,45 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  revision = "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f"
+
+[[projects]]
+  name = "google.golang.org/grpc"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclog",
+    "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/envconfig",
+    "internal/grpcrand",
+    "internal/transport",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap"
+  ]
+  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
+  version = "v1.15.0"
+
+[[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
   revision = "a7274600e78d26876a32d8b293cbb0cd324f61a2"
@@ -195,6 +301,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3d5f92522d6ab96ba27bafa89d9380c7af99c106045812858571b61b4fa066a7"
+  inputs-digest = "d4847189bb0947eebe196e22548f040f4aabca91aab92999248cf505392e8cbe"
   solver-name = "gps-cdcl"
   solver-version = 1
