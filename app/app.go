@@ -144,7 +144,7 @@ func (a *Application) Stop() {
 func (a *Application) runEventFetcher() {
 	err := a.eventFetcher.Run()
 	if err != nil {
-		log.Fatalf("fetching events failed: %v\n", err)
+		log.Fatalf("error running event fetcher: %v\n", err)
 	}
 }
 
