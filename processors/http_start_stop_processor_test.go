@@ -39,12 +39,13 @@ var _ = Describe("HttpStartStopProcessor", func() {
 				var (
 					applicationID      string
 					httpStartStopEvent *events.AppEvent
+					stopTimestamp      int64
 				)
 
 				BeforeEach(func() {
 					applicationID = "4630f6ba-8ddc-41f1-afea-1905332d6660"
 					startTimestamp := int64(0)
-					stopTimestamp := int64(11 * time.Millisecond)
+					stopTimestamp = int64(11 * time.Millisecond)
 					clientPeerType := sonde_events.PeerType_Client
 					getMethod := sonde_events.Method_GET
 					instanceIndex := int32(0)
@@ -89,6 +90,7 @@ var _ = Describe("HttpStartStopProcessor", func() {
 						GUID:     applicationID,
 						Metadata: map[string]string{"statusRange": statusRange},
 						Value:    11 * time.Millisecond,
+						Stop:     stopTimestamp,
 					}))
 				})
 

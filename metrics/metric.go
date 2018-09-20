@@ -110,6 +110,8 @@ type PrecisionTimingMetric struct {
 	Metadata     map[string]string
 
 	Value time.Duration
+	Start int64
+	Stop  int64
 }
 
 func (m PrecisionTimingMetric) Name() string {
