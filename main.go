@@ -23,6 +23,8 @@ var (
 	statsdPrefix        = kingpin.Flag("statsd-prefix", "Statsd prefix").Default("mycf.").OverrideDefaultFromEnvar("STATSD_PREFIX").String()
 	username            = kingpin.Flag("username", "UAA username.").Default("").OverrideDefaultFromEnvar("USERNAME").String()
 	password            = kingpin.Flag("password", "UAA password.").Default("").OverrideDefaultFromEnvar("PASSWORD").String()
+	clientID            = kingpin.Flag("client-id", "UAA client ID.").Default("").OverrideDefaultFromEnvar("CLIENT_ID").String()
+	clientSecret        = kingpin.Flag("client-secret", "UAA client secret.").Default("").OverrideDefaultFromEnvar("CLIENT_SECRET").String()
 	skipSSLValidation   = kingpin.Flag("skip-ssl-validation", "Please don't").Default("false").OverrideDefaultFromEnvar("SKIP_SSL_VALIDATION").Bool()
 	debug               = kingpin.Flag("debug", "Enable debug mode. This disables forwarding to statsd and prometheus and prints to stdout").Default("false").OverrideDefaultFromEnvar("DEBUG").Bool()
 	updateFrequency     = kingpin.Flag("update-frequency", "The time in seconds, that takes between each apps update call.").Default("300").OverrideDefaultFromEnvar("UPDATE_FREQUENCY").Int64()
@@ -67,6 +69,8 @@ func main() {
 			SkipSslValidation: *skipSSLValidation,
 			Username:          *username,
 			Password:          *password,
+			ClientID:          *clientID,
+			ClientSecret:      *clientSecret,
 		},
 		CFAppUpdateFrequency: time.Duration(*updateFrequency) * time.Second,
 		Whitelist:            normalizeWhitelist(*metricWhitelist),
