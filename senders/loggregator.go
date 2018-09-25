@@ -4,11 +4,23 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/go-loggregator"
+	"fmt"
 	"github.com/alphagov/paas-metric-exporter/metrics"
 )
 
 type LoggregatorSender struct {
 	IngressClient *loggregator.IngressClient
+}
+
+type IngressClientLogger struct{}
+
+func (icl *IngressClientLogger) Printf(str string, args ...interface{}) {
+	fmt.Println(str, args)
+}
+
+func (icl *IngressClientLogger) Panicf(str string, args ...interface{}) {
+	fmt.Println("panic", str, args)
+	panic(args)
 }
 
 func NewLoggregatorSender(url, caPath, certPath, keyPath string) (*LoggregatorSender, error) {
@@ -20,6 +32,7 @@ func NewLoggregatorSender(url, caPath, certPath, keyPath string) (*LoggregatorSe
 		ingressTLSConfig,
 		loggregator.WithAddr(url),
 		loggregator.WithTag("origin", "paas-metric-exporter"),
+		loggregator.WithLogger(&IngressClientLogger{}),
 	)
 	if err != nil {
 		return nil, err
