@@ -1,6 +1,6 @@
 // Note: Copied from https://github.com/cloudfoundry/go-loggregator/blob/8ebcfd3c7377510fe5a45ded5110d7749b562606/servers_test.go
 
-package helpers
+package loggregator
 
 import (
 	"crypto/tls"

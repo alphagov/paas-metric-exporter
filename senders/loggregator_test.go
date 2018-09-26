@@ -2,7 +2,7 @@ package senders_test
 
 import (
 	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
-	"github.com/alphagov/paas-metric-exporter/helpers"
+	fakeLoggregator "github.com/alphagov/paas-go/testing/fakes/loggregator"
 	"github.com/alphagov/paas-metric-exporter/metrics"
 	"github.com/alphagov/paas-metric-exporter/senders"
 	. "github.com/onsi/ginkgo"
@@ -12,13 +12,13 @@ import (
 
 var _ = Describe("LoggregatorSender", func() {
 	var (
-		server *helpers.FakeLoggregatorIngressServer
+		server *fakeLoggregator.FakeLoggregatorIngressServer
 		sender *senders.LoggregatorSender
 		err    error
 	)
 
 	BeforeEach(func() {
-		server, err = helpers.NewFakeLoggregatorIngressServer(
+		server, err = fakeLoggregator.NewFakeLoggregatorIngressServer(
 			"../fixtures/loggregator-server.cert.pem",
 			"../fixtures/loggregator-server.key.pem",
 			"../fixtures/ca.cert.pem",

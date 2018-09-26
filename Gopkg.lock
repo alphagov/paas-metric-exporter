@@ -37,6 +37,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/alphagov/paas-go"
+  packages = ["testing/fakes/loggregator"]
+  revision = "bae663f579751253843d5763a56f2a7c4e59ee8c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
@@ -301,6 +307,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d4847189bb0947eebe196e22548f040f4aabca91aab92999248cf505392e8cbe"
+  inputs-digest = "8192b4b352be5a1ec37dbcb1ffc4afd252626efa529eb7337a638cf77978233f"
   solver-name = "gps-cdcl"
   solver-version = 1

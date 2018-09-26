@@ -1,27 +1,27 @@
-package helpers_test
+package loggregator_test
 
 import (
 	"time"
 
 	loggregator "code.cloudfoundry.org/go-loggregator"
 
-	"github.com/alphagov/paas-metric-exporter/helpers"
+	fakeLoggregator "github.com/alphagov/paas-go/testing/fakes/loggregator"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("IngressClient", func() {
 	var (
-		server *helpers.FakeLoggregatorIngressServer
+		server *fakeLoggregator.FakeLoggregatorIngressServer
 		client *loggregator.IngressClient
 	)
 
 	BeforeEach(func() {
 		var err error
-		server, err = helpers.NewFakeLoggregatorIngressServer(
-			"../fixtures/loggregator-server.cert.pem",
-			"../fixtures/loggregator-server.key.pem",
-			"../fixtures/ca.cert.pem",
+		server, err = fakeLoggregator.NewFakeLoggregatorIngressServer(
+			"../../../fixtures/loggregator-server.cert.pem",
+			"../../../fixtures/loggregator-server.key.pem",
+			"../../../fixtures/ca.cert.pem",
 		)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -29,9 +29,9 @@ var _ = Describe("IngressClient", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		tlsConfig, err := loggregator.NewIngressTLSConfig(
-			"../fixtures/ca.cert.pem",
-			"../fixtures/loggregator-server.cert.pem",
-			"../fixtures/loggregator-server.key.pem",
+			"../../../fixtures/ca.cert.pem",
+			"../../../fixtures/loggregator-server.cert.pem",
+			"../../../fixtures/loggregator-server.key.pem",
 		)
 		Expect(err).NotTo(HaveOccurred())
 

@@ -1,4 +1,4 @@
-package helpers_test
+package loggregator_test
 
 import (
 	"testing"
