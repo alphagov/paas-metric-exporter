@@ -35,6 +35,11 @@ var (
 	enableStatsd        = kingpin.Flag("enable-statsd", "Enable the statsd sender.").Default("true").OverrideDefaultFromEnvar("ENABLE_STATSD").Bool()
 	enablePrometheus    = kingpin.Flag("enable-prometheus", "Enable the prometheus sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_PROMETHEUS").Bool()
 	enableLoggregator   = kingpin.Flag("enable-loggregator", "Enable the Loggregator sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_LOGGREGATOR").Bool()
+	enableLocking       = kingpin.Flag("enable-locking", "Enable locking via Locket.").Default("false").OverrideDefaultFromEnvar("ENABLE_LOCKING").Bool()
+	locketAddress       = kingpin.Flag("locket-address", "address:port of Locket server.").Default("127.0.0.1:8891").OverrideDefaultFromEnvar("LOCKET_API_LOCATION").String()
+	locketCACert        = kingpin.Flag("locket-ca-cert", "File path to Locket CA certificate.").Default("").OverrideDefaultFromEnvar("LOCKET_CA_CERT").String()
+	locketClientCert    = kingpin.Flag("locket-client-cert", "File path to Locket client certificate.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_CERT").String()
+	locketClientKey     = kingpin.Flag("locket-client-key", "File path to Locket client key.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_KEY").String()
 )
 
 func normalizePrefix(prefix string) string {
@@ -78,6 +83,9 @@ func main() {
 		EnablePrometheus:     *enablePrometheus,
 		PrometheusPort:       *prometheusBindPort,
 	}
+
+	locketConfig := app.NewLocketConfig(locketAddress, locketCACert, locketClientCert, locketClientKey)
+	config.ClientLocketConfig = locketConfig
 
 	processors := map[sonde_events.Envelope_EventType]processors.Processor{
 		sonde_events.Envelope_ContainerMetric: &processors.ContainerMetricProcessor{},
@@ -134,5 +142,5 @@ func main() {
 	}
 
 	app := app.NewApplication(config, processors, metricSenders)
-	app.Run()
+	app.Start(*enableLocking)
 }
