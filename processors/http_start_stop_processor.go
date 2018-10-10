@@ -43,6 +43,8 @@ func (p *HttpStartStopProcessor) Process(appEvent *events.AppEvent) ([]metrics.M
 			Metric:       "responseTime",
 			Metadata:     map[string]string{"statusRange": statusRange},
 			Value:        time.Duration(httpStartStop.GetStopTimestamp() - httpStartStop.GetStartTimestamp()),
+			Start:        httpStartStop.GetStartTimestamp(),
+			Stop:         httpStartStop.GetStopTimestamp(),
 		},
 	}, nil
 }

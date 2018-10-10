@@ -77,6 +77,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 				Space:        "space-name",
 				Metric:       "cpu",
 				Value:        70,
+				Unit:         "percentage",
 			}
 			Expect(processedMetrics).To(ContainElement(expectedCPUMetric))
 
@@ -90,6 +91,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 				Space:        "space-name",
 				Metric:       "memoryBytes",
 				Value:        16 * 1024 * 1024,
+				Unit:         "bytes",
 			}
 			Expect(processedMetrics).To(ContainElement(expectedMemoryMetric))
 
@@ -103,6 +105,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 				Space:        "space-name",
 				Metric:       "memoryUtilization",
 				Value:        50,
+				Unit:         "percentage",
 			}
 			Expect(processedMetrics).To(ContainElement(expectedMemoryUtilisationMetric))
 
@@ -116,6 +119,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 				Space:        "space-name",
 				Metric:       "diskBytes",
 				Value:        25 * 1024 * 1024,
+				Unit:         "bytes",
 			}
 			Expect(processedMetrics).To(ContainElement(expectedDiskMetric))
 
@@ -129,6 +133,7 @@ var _ = Describe("ContainerMetricProcessor", func() {
 				Space:        "space-name",
 				Metric:       "diskUtilization",
 				Value:        25,
+				Unit:         "percentage",
 			}
 			Expect(processedMetrics).To(ContainElement(expectedDiskUtilisationMetric))
 		})

@@ -2,6 +2,71 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/cfhttp"
+  packages = [
+    ".",
+    "unix_transport"
+  ]
+  revision = "08baa6b247caf03100a743f6c3c426d28e55336a"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/clock"
+  packages = ["."]
+  revision = "02e53af36e6c978af692887ed449b74026d76fec"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/consuladapter"
+  packages = ["."]
+  revision = "c6d9ccbe0f83c7f3052e8304918f1107d321a39a"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/diego-logging-client"
+  packages = ["."]
+  revision = "67e71e13e3daa285ae0b2af4bb6cc34f5bd045ac"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/go-diodes"
+  packages = ["."]
+  revision = "72629b5276e3e1512ff8c943470848634bf0cabd"
+
+[[projects]]
+  name = "code.cloudfoundry.org/go-loggregator"
+  packages = [
+    ".",
+    "rpc/loggregator_v2"
+  ]
+  revision = "b5cb096c92dd8308896b3df4099f399ffdc045a8"
+  version = "v7.1.0"
+
+[[projects]]
+  name = "code.cloudfoundry.org/lager"
+  packages = ["."]
+  revision = "b60e04e119450552243196105bae0d42179ee0ca"
+  version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/locket"
+  packages = [
+    ".",
+    "grpcserver",
+    "lock",
+    "models"
+  ]
+  revision = "cd6f53abfd149fea7a1b276a3f1d469c10e07811"
+
+[[projects]]
+  branch = "master"
+  name = "code.cloudfoundry.org/rfc5424"
+  packages = ["."]
+  revision = "236a6d29298aea12f69978f33393d12465abc429"
+
+[[projects]]
   name = "github.com/alecthomas/template"
   packages = [
     ".",
@@ -13,6 +78,15 @@
   name = "github.com/alecthomas/units"
   packages = ["."]
   revision = "6b4e7dc5e3143b85ea77909c72caf89416fc2915"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alphagov/paas-go"
+  packages = [
+    "testing/fakes/locket/mock_server",
+    "testing/fakes/loggregator"
+  ]
+  revision = "05e0a9ff550707d3f2e047501c2b50a8d69e7aec"
 
 [[projects]]
   branch = "master"
@@ -47,12 +121,22 @@
     "proto",
     "protoc-gen-gogo/descriptor"
   ]
-  revision = "83faaee7bbbdf0c59310ec67d340bc0cbe77053f"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  revision = "c3cefd437628a0b7d31b34fe44b3a7a540e98527"
+  packages = [
+    "jsonpb",
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/struct",
+    "ptypes/timestamp"
+  ]
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -60,16 +144,58 @@
   revision = "9007e29a7c93fc3dcebbdbf742ce0efaf19e6510"
 
 [[projects]]
+  name = "github.com/hashicorp/consul"
+  packages = ["api"]
+  revision = "48d287ef690ada66634885640f3444dbf7b71d18"
+  version = "v1.2.3"
+
+[[projects]]
+  name = "github.com/hashicorp/go-cleanhttp"
+  packages = ["."]
+  revision = "e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18"
+  version = "v0.5.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/go-rootcerts"
+  packages = ["."]
+  revision = "6bb64b370b90e7ef1fa532be9e591a81c3493e00"
+
+[[projects]]
+  name = "github.com/hashicorp/serf"
+  packages = ["coordinate"]
+  revision = "d6574a5bb1226678d7010325fb6c985db20ee458"
+  version = "v0.8.1"
+
+[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
-  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
+  name = "github.com/mitchellh/go-homedir"
+  packages = ["."]
+  revision = "ae18d6b8b3205b561c79e8e5f69bff09736185f4"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/mitchellh/hashstructure"
+  packages = ["."]
+  revision = "a38c50148365edc8df43c1580c48fb2b3a1e9cd7"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/mitchellh/mapstructure"
+  packages = ["."]
+  revision = "fa473d140ef3c6adf42d6b391fe76707f1f243c8"
   version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  name = "github.com/mitchellh/hashstructure"
+  name = "github.com/nu7hatch/gouuid"
   packages = ["."]
-  revision = "2bca23e0e452137f789efbc8610126fd8b94f73b"
+  revision = "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 
 [[projects]]
   name = "github.com/onsi/ginkgo"
@@ -98,6 +224,8 @@
   packages = [
     ".",
     "format",
+    "gbytes",
+    "gexec",
     "ghttp",
     "internal/assertion",
     "internal/asyncassertion",
@@ -110,7 +238,14 @@
     "matchers/support/goraph/util",
     "types"
   ]
-  revision = "c72df929b80ef4930aaa75d5e486887ff2f3e06a"
+  revision = "7615b9433f86a8bdf29709bf288bc4fd0636a369"
+  version = "v1.4.2"
+
+[[projects]]
+  name = "github.com/phayes/freeport"
+  packages = ["."]
+  revision = "b8543db493a5ed890c5499e935e2cad7504f3a04"
+  version = "1.0.2"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -159,9 +294,37 @@
   version = "1.4.0"
 
 [[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/tedsuo/ifrit"
+  packages = [
+    ".",
+    "grouper",
+    "sigmon"
+  ]
+  revision = "bea94bb476ccecfbd31b12ed493a971bdb8c904b"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "07b51741c1d6423d4a6abab1c49940ec09cb1aaf"
+  packages = [
+    "context",
+    "html",
+    "html/atom",
+    "html/charset",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "trace"
+  ]
+  revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
 
 [[projects]]
   name = "golang.org/x/oauth2"
@@ -171,6 +334,39 @@
     "internal"
   ]
   revision = "314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd"
+
+[[projects]]
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "encoding",
+    "encoding/charmap",
+    "encoding/htmlindex",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/japanese",
+    "encoding/korean",
+    "encoding/simplifiedchinese",
+    "encoding/traditionalchinese",
+    "encoding/unicode",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "internal/utf8internal",
+    "language",
+    "runes",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -187,14 +383,58 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  revision = "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f"
+
+[[projects]]
+  name = "google.golang.org/grpc"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclog",
+    "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/grpcrand",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
+  revision = "168a6198bcb0ef175f7dacec0b8691fc141dc9b8"
+  version = "v1.13.0"
+
+[[projects]]
   name = "gopkg.in/alecthomas/kingpin.v2"
   packages = ["."]
   revision = "a7274600e78d26876a32d8b293cbb0cd324f61a2"
   version = "v2.0.8"
 
+[[projects]]
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3d5f92522d6ab96ba27bafa89d9380c7af99c106045812858571b61b4fa066a7"
+  inputs-digest = "bf670b431205279e17ed76b8b30263bb27c8bb4b7337191966e36c51e19dc632"
   solver-name = "gps-cdcl"
   solver-version = 1

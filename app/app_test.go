@@ -19,6 +19,10 @@ import (
 )
 
 var _ = Describe("App", func() {
+	const (
+		runWithLock = false
+	)
+
 	var (
 		fetcher      *events_mocks.FakeFetcherProcess
 		proc1        *proc_mocks.FakeProcessor
@@ -55,7 +59,7 @@ var _ = Describe("App", func() {
 		app.appEventChan = appEventChan
 		app.errorChan = errorChan
 
-		go app.Run()
+		go app.Start(runWithLock)
 	})
 
 	AfterEach(func() {

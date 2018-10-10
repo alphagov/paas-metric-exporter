@@ -50,6 +50,7 @@ Refer to the [PaaS Technical Documentation](https://docs.cloud.service.gov.uk/#m
 |Prometheus Bind Port|prometheus-bind-port|PORT|The port that the prometheus server binds to. Default is 8080|
 |Enable Statsd|enable-statsd|ENABLE_STATSD|Enable the statsd sender. Default is true.|
 |Enable prometheus|enable-prometheus|ENABLE_PROMETHEUS|Enable the prometheus sender. Default is false.|
+|Enable Loggregator|enable-loggregator|ENABLE_LOGGREGATOR|Enable the Loggregator sender. Default is false.|
 
 ## Metric Whitelist
 

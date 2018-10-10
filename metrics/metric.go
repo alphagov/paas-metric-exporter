@@ -72,6 +72,7 @@ type GaugeMetric struct {
 	Metadata     map[string]string
 
 	Value int64
+	Unit  string
 }
 
 func (m GaugeMetric) Name() string {
@@ -110,6 +111,8 @@ type PrecisionTimingMetric struct {
 	Metadata     map[string]string
 
 	Value time.Duration
+	Start int64
+	Stop  int64
 }
 
 func (m PrecisionTimingMetric) Name() string {
