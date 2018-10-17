@@ -11,7 +11,6 @@ import (
 	"github.com/alphagov/paas-metric-exporter/senders"
 	"github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
-	"github.com/prometheus/client_golang/prometheus"
 	quipo_statsd "github.com/quipo/statsd"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
@@ -31,7 +30,6 @@ var (
 	metricTemplate      = kingpin.Flag("metric-template", "The template that will form a new metric namespace.").Default(senders.DefaultTemplate).OverrideDefaultFromEnvar("METRIC_TEMPLATE").String()
 	metricWhitelist     = kingpin.Flag("metric-whitelist", "Comma separated metric name prefixes to enable.").Default("").OverrideDefaultFromEnvar("METRIC_WHITELIST").String()
 	prometheusBindPort  = kingpin.Flag("prometheus-bind-port", "The port to bind to for prometheus metrics.").Default("8080").OverrideDefaultFromEnvar("PORT").Int()
-	prometheusMetricTTL = kingpin.Flag("prometheus-metric-ttl", "Time that a metric is kept in the prometheus exporter.").Default("60").OverrideDefaultFromEnvar("PROMETHEUS_METRIC_TTL").Int()
 	enableStatsd        = kingpin.Flag("enable-statsd", "Enable the statsd sender.").Default("true").OverrideDefaultFromEnvar("ENABLE_STATSD").Bool()
 	enablePrometheus    = kingpin.Flag("enable-prometheus", "Enable the prometheus sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_PROMETHEUS").Bool()
 	enableLoggregator   = kingpin.Flag("enable-loggregator", "Enable the Loggregator sender.").Default("false").OverrideDefaultFromEnvar("ENABLE_LOGGREGATOR").Bool()
@@ -116,13 +114,7 @@ func main() {
 		}
 
 		if *enablePrometheus {
-			metricSenders = append(
-				metricSenders,
-				senders.NewPrometheusSender(
-					prometheus.DefaultRegisterer,
-					time.Duration(*prometheusMetricTTL)*time.Second,
-				),
-			)
+			metricSenders = append(metricSenders, senders.NewPrometheusSender())
 		}
 
 		if *enableLoggregator {

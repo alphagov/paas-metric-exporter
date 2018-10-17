@@ -14,24 +14,14 @@ import (
 )
 
 var _ = Describe("PrometheusSender", func() {
-	var (
-		registerer prometheus.Registerer
-		gatherer   prometheus.Gatherer
-		sender     Sender
-	)
+	var sender Sender
 	BeforeEach(func() {
-		registry := prometheus.NewRegistry()
-		gatherer = registry
-		registerer = registry
-		sender = NewPrometheusSender(
-			registerer,
-			100*time.Millisecond,
-		)
+		sender = NewPrometheusSender()
 	})
 
 	Describe("#Incr", func() {
 		It("sends a counter metric to prometheus", func() {
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.Incr(CounterMetric{
 					Metric: "counter_incremented_once",
 					Value:  1,
@@ -54,54 +44,8 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(labels[0].GetValue()).To(Equal("some_value"))
 		})
 
-		It("forgets metrics from an app instance after a while", func() {
-			families := captureMetrics(gatherer, func() {
-				sender.Incr(CounterMetric{
-					Metric:   "counter_incremented_once",
-					Value:    1,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "0",
-				})
-				sender.Incr(CounterMetric{
-					Metric:   "counter_incremented_once",
-					Value:    1,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "1",
-				})
-			})
-
-			Expect(len(families)).To(Equal(1))
-			family := families[0]
-			metrics := family.GetMetric()
-
-			Expect(len(metrics)).To(Equal(2))
-
-			Eventually(
-				func() interface{} {
-					sender.Incr(CounterMetric{
-						Metric:   "counter_incremented_once",
-						Value:    1,
-						App:      "some_value",
-						GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-						Instance: "0",
-					})
-					families, _ := gatherer.Gather()
-					Expect(len(families)).To(Equal(1))
-					family := families[0]
-					metrics := family.GetMetric()
-					return metrics
-				},
-				500*time.Millisecond,
-				200*time.Millisecond,
-			).Should(
-				HaveLen(1),
-			)
-		})
-
 		It("presents metric names and label names as snake case", func() {
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.Incr(CounterMetric{
 					Metric: "fooBarBaz",
 					Value:  1,
@@ -134,7 +78,7 @@ var _ = Describe("PrometheusSender", func() {
 				App:    "some_value",
 			}
 
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.Incr(counterMetric)
 				sender.Incr(counterMetric)
 				sender.Incr(counterMetric)
@@ -150,7 +94,7 @@ var _ = Describe("PrometheusSender", func() {
 		})
 
 		It("includes Metadata as additional labels", func() {
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.Incr(CounterMetric{
 					Metric:   "response",
 					Metadata: map[string]string{"statusRange": "2xx"},
@@ -168,12 +112,11 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(metadata.GetName()).To(Equal("status_range"))
 			Expect(metadata.GetValue()).To(Equal("2xx"))
 		})
-
 	})
 
 	Describe("#Gauge", func() {
 		It("sends a floating point gauge metric to prometheus", func() {
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.Gauge(GaugeMetric{
 					Metric: "my_gauge",
 					Value:  3,
@@ -190,56 +133,11 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(family.GetName()).To(Equal("my_gauge"))
 			Expect(metric.GetValue()).To(Equal(3.0))
 		})
-
-		It("forgets metrics from an app instance after a while", func() {
-			families := captureMetrics(gatherer, func() {
-				sender.Gauge(GaugeMetric{
-					Metric:   "my_gauge",
-					Value:    3,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "0",
-				})
-				sender.Gauge(GaugeMetric{
-					Metric:   "my_gauge",
-					Value:    3,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "1",
-				})
-			})
-
-			Expect(len(families)).To(Equal(1))
-			family := families[0]
-			metrics := family.GetMetric()
-			Expect(len(metrics)).To(Equal(2))
-
-			Eventually(
-				func() interface{} {
-					sender.Gauge(GaugeMetric{
-						Metric:   "my_gauge",
-						Value:    3,
-						App:      "some_value",
-						GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-						Instance: "0",
-					})
-					families, _ := gatherer.Gather()
-					Expect(len(families)).To(Equal(1))
-					family := families[0]
-					metrics := family.GetMetric()
-					return metrics
-				},
-				500*time.Millisecond,
-				200*time.Millisecond,
-			).Should(
-				HaveLen(1),
-			)
-		})
 	})
 
 	Describe("#PrecisionTiming", func() {
 		It("sends a histogram metric into a sensible bucket in prometheus", func() {
-			families := captureMetrics(gatherer, func() {
+			families := captureMetrics(func() {
 				sender.PrecisionTiming(PrecisionTimingMetric{
 					Metric: "my_precise_time",
 					Value:  time.Duration(3142) * time.Millisecond,
@@ -269,57 +167,14 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(last_buckets[2].GetUpperBound()).To(Equal(10.0))
 			Expect(last_buckets[2].GetCumulativeCount()).To(Equal(uint64(1)))
 		})
-
-		It("forgets metrics from an app instance after a while", func() {
-			families := captureMetrics(gatherer, func() {
-				sender.PrecisionTiming(PrecisionTimingMetric{
-					Metric:   "my_precise_time",
-					Value:    time.Duration(3142) * time.Millisecond,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "0",
-				})
-				sender.PrecisionTiming(PrecisionTimingMetric{
-					Metric:   "my_precise_time",
-					Value:    time.Duration(3142) * time.Millisecond,
-					App:      "some_value",
-					GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-					Instance: "1",
-				})
-			})
-
-			Expect(len(families)).To(Equal(1))
-			family := families[0]
-			metrics := family.GetMetric()
-			Expect(len(metrics)).To(Equal(2))
-
-			Eventually(
-				func() interface{} {
-					sender.PrecisionTiming(PrecisionTimingMetric{
-						Metric:   "my_precise_time",
-						Value:    time.Duration(3142) * time.Millisecond,
-						App:      "some_value",
-						GUID:     "e44436d3-b319-4296-96c9-fc142358f965",
-						Instance: "0",
-					})
-					families, _ := gatherer.Gather()
-					Expect(len(families)).To(Equal(1))
-					family := families[0]
-					metrics := family.GetMetric()
-					return metrics
-				},
-				500*time.Millisecond,
-				200*time.Millisecond,
-			).Should(
-				HaveLen(1),
-			)
-		})
 	})
 })
 
 type metric []*io_prometheus_client.MetricFamily
 
-func captureMetrics(gatherer prometheus.Gatherer, callback func()) metric {
+func captureMetrics(callback func()) metric {
+	gatherer := prometheus.DefaultGatherer
+
 	before, _ := gatherer.Gather()
 	callback()
 	after, _ := gatherer.Gather()
