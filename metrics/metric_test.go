@@ -43,6 +43,14 @@ func (f *FakeStatsdClient) Gauge(metric GaugeMetric) error {
 	return nil
 }
 
+func (f *FakeStatsdClient) AppCreated(guid string) error {
+	return nil
+}
+
+func (f *FakeStatsdClient) AppDeleted(guid string) error {
+	return nil
+}
+
 var _ = Describe("Metric", func() {
 	var (
 		fakeStatsdClient *FakeStatsdClient

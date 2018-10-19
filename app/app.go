@@ -77,14 +77,16 @@ func NewLocketConfig(addr, caCert, clientCert, clientKey *string) locket.ClientL
 
 // Application is the main application logic
 type Application struct {
-	config       *Config
-	processors   map[sonde_events.Envelope_EventType]processors.Processor
-	eventFetcher events.FetcherProcess
-	senders      []metrics.Sender
-	appEventChan chan *events.AppEvent
-	errorChan    chan error
-	exitChan     chan bool
-	logger       lager.Logger
+	config         *Config
+	processors     map[sonde_events.Envelope_EventType]processors.Processor
+	eventFetcher   events.FetcherProcess
+	senders        []metrics.Sender
+	appEventChan   chan *events.AppEvent
+	newAppChan     chan string
+	deletedAppChan chan string
+	errorChan      chan error
+	exitChan       chan bool
+	logger         lager.Logger
 }
 
 // NewApplication creates a new application instance
@@ -103,21 +105,25 @@ func NewApplication(
 		UpdateFrequency: config.CFAppUpdateFrequency,
 	}
 	appEventChan := make(chan *events.AppEvent)
+	newAppChan := make(chan string)
+	deletedAppChan := make(chan string)
 	errorChan := make(chan error)
-	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, errorChan)
+	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, newAppChan, deletedAppChan, errorChan)
 
 	logger := lager.NewLogger("metric-exporter")
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))
 
 	return &Application{
-		config:       config,
-		processors:   processors,
-		senders:      senders,
-		eventFetcher: eventFetcher,
-		appEventChan: appEventChan,
-		errorChan:    errorChan,
-		exitChan:     make(chan bool),
-		logger:       logger,
+		config:         config,
+		processors:     processors,
+		senders:        senders,
+		eventFetcher:   eventFetcher,
+		appEventChan:   appEventChan,
+		newAppChan:     newAppChan,
+		deletedAppChan: deletedAppChan,
+		errorChan:      errorChan,
+		exitChan:       make(chan bool),
+		logger:         logger,
 	}
 }
 
@@ -223,6 +229,20 @@ func (a *Application) run() {
 					if err != nil {
 						log.Printf("sending metrics failed %v\n", err)
 					}
+				}
+			}
+		case newApp := <-a.newAppChan:
+			for _, sender := range a.senders {
+				err := sender.AppCreated(newApp)
+				if err != nil {
+					log.Printf("registering app failed %v\n", err)
+				}
+			}
+		case deletedApp := <-a.deletedAppChan:
+			for _, sender := range a.senders {
+				err := sender.AppDeleted(deletedApp)
+				if err != nil {
+					log.Printf("unregistering app failed %v\n", err)
 				}
 			}
 		case err := <-a.errorChan:

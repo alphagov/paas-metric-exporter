@@ -26,14 +26,16 @@ type TokenErr struct {
 
 var _ = Describe("Fetcher", func() {
 	var (
-		apiServer    *ghttp.Server
-		tcServer     *ghttp.Server
-		tcHandler    mockWebsocketHandler
-		endpoint     cfclient.Endpoint
-		token        oauth2.Token
-		fetcher      *Fetcher
-		appEventChan chan *AppEvent
-		errorChan    chan error
+		apiServer      *ghttp.Server
+		tcServer       *ghttp.Server
+		tcHandler      mockWebsocketHandler
+		endpoint       cfclient.Endpoint
+		token          oauth2.Token
+		fetcher        *Fetcher
+		appEventChan   chan *AppEvent
+		newAppChan     chan string
+		deletedAppChan chan string
+		errorChan      chan error
 	)
 
 	BeforeEach(func() {
@@ -89,7 +91,9 @@ var _ = Describe("Fetcher", func() {
 		}
 		appEventChan = make(chan *AppEvent, 10)
 		errorChan = make(chan error, 10)
-		fetcher = NewFetcher(config, appEventChan, errorChan)
+		newAppChan = make(chan string, 10)
+		deletedAppChan = make(chan string, 10)
+		fetcher = NewFetcher(config, appEventChan, newAppChan, deletedAppChan, errorChan)
 		fetcher.authenticate()
 	})
 
@@ -98,6 +102,10 @@ var _ = Describe("Fetcher", func() {
 		close(appEventChan)
 		Expect(errorChan).To(BeEmpty())
 		close(errorChan)
+		Expect(newAppChan).To(BeEmpty())
+		close(newAppChan)
+		Expect(deletedAppChan).To(BeEmpty())
+		close(deletedAppChan)
 
 		log.SetOutput(os.Stdout)
 	})
@@ -154,6 +162,7 @@ var _ = Describe("Fetcher", func() {
 
 				var eventBeforeRename *AppEvent
 				Eventually(appEventChan).Should(Receive(&eventBeforeRename))
+				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333")))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
@@ -244,6 +253,7 @@ var _ = Describe("Fetcher", func() {
 					}
 					Eventually(inMap).Should(BeTrue())
 					Eventually(appEventChan).Should(Receive())
+					Eventually(newAppChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -254,6 +264,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
+					Eventually(deletedAppChan).Should(Receive())
 				}
 			})
 		})
@@ -337,6 +348,7 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
 					Eventually(appEventChan).Should(Receive())
+					Eventually(newAppChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -348,6 +360,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
+					Eventually(deletedAppChan).Should(Receive())
 				}
 
 				newApps := apps[1:]
@@ -358,6 +371,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
+					Eventually(newAppChan).Should(Receive())
 				}
 			})
 		})
