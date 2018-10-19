@@ -65,8 +65,6 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(family.GetName()).To(Equal("foo_bar_baz"))
 
 			Expect(labels[0].GetName()).To(Equal("app"))
-			Expect(labels[1].GetName()).To(Equal("cell_id"))
-			Expect(labels[2].GetName()).To(Equal("guid"))
 
 			Expect(labels[0].GetValue()).To(Equal("shouldNotBeChanged"))
 		})
