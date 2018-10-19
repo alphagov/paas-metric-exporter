@@ -56,4 +56,3 @@ func (d StatsdSender) AppCreated(guid string) error {
 func (d StatsdSender) AppDeleted(guid string) error {
 	return nil
 }
-

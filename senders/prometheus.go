@@ -15,8 +15,8 @@ type appMetrics struct {
 }
 
 type PrometheusSender struct {
-	presenter     presenters.SnakeCasePresenter
-	appMetrics    map[string]appMetrics
+	presenter  presenters.SnakeCasePresenter
+	appMetrics map[string]appMetrics
 }
 
 var _ metrics.Sender = &PrometheusSender{}

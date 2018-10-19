@@ -25,30 +25,30 @@ type FetcherConfig struct {
 }
 
 type Fetcher struct {
-	config       *FetcherConfig
-	cfClient     *cfclient.Client
-	appEventChan chan *AppEvent
-	newAppChan   chan string
+	config         *FetcherConfig
+	cfClient       *cfclient.Client
+	appEventChan   chan *AppEvent
+	newAppChan     chan string
 	deletedAppChan chan string
-	errorChan    chan error
-	watchedApps  map[string]chan cfclient.App
+	errorChan      chan error
+	watchedApps    map[string]chan cfclient.App
 	sync.RWMutex
 }
 
 func NewFetcher(
 	config *FetcherConfig,
 	appEventChan chan *AppEvent,
-	newAppChan   chan string,
+	newAppChan chan string,
 	deletedAppChan chan string,
-	errorChan    chan error,
+	errorChan chan error,
 ) *Fetcher {
 	return &Fetcher{
-		config:       config,
-		appEventChan: appEventChan,
-		newAppChan:   newAppChan,
+		config:         config,
+		appEventChan:   appEventChan,
+		newAppChan:     newAppChan,
 		deletedAppChan: deletedAppChan,
-		errorChan:    errorChan,
-		watchedApps:  make(map[string]chan cfclient.App),
+		errorChan:      errorChan,
+		watchedApps:    make(map[string]chan cfclient.App),
 	}
 }
 

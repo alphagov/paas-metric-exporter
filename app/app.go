@@ -77,16 +77,16 @@ func NewLocketConfig(addr, caCert, clientCert, clientKey *string) locket.ClientL
 
 // Application is the main application logic
 type Application struct {
-	config       *Config
-	processors   map[sonde_events.Envelope_EventType]processors.Processor
-	eventFetcher events.FetcherProcess
-	senders      []metrics.Sender
-	appEventChan chan *events.AppEvent
-	newAppChan   chan string
+	config         *Config
+	processors     map[sonde_events.Envelope_EventType]processors.Processor
+	eventFetcher   events.FetcherProcess
+	senders        []metrics.Sender
+	appEventChan   chan *events.AppEvent
+	newAppChan     chan string
 	deletedAppChan chan string
-	errorChan    chan error
-	exitChan     chan bool
-	logger       lager.Logger
+	errorChan      chan error
+	exitChan       chan bool
+	logger         lager.Logger
 }
 
 // NewApplication creates a new application instance
@@ -114,16 +114,16 @@ func NewApplication(
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))
 
 	return &Application{
-		config:       config,
-		processors:   processors,
-		senders:      senders,
-		eventFetcher: eventFetcher,
-		appEventChan: appEventChan,
-		newAppChan:   newAppChan,
+		config:         config,
+		processors:     processors,
+		senders:        senders,
+		eventFetcher:   eventFetcher,
+		appEventChan:   appEventChan,
+		newAppChan:     newAppChan,
 		deletedAppChan: deletedAppChan,
-		errorChan:    errorChan,
-		exitChan:     make(chan bool),
-		logger:       logger,
+		errorChan:      errorChan,
+		exitChan:       make(chan bool),
+		logger:         logger,
 	}
 }
 
