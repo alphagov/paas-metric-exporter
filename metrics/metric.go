@@ -13,6 +13,8 @@ type Sender interface {
 	Gauge(metric GaugeMetric) error
 	Incr(metric CounterMetric) error
 	PrecisionTiming(metric PrecisionTimingMetric) error
+	AppCreated(guid string) error
+	AppDeleted(guid string) error
 }
 
 //go:generate counterfeiter -o mocks/metric.go . Metric

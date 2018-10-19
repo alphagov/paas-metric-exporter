@@ -50,3 +50,13 @@ func (d DebugSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error
 	log.Printf("timing %s %d\n", d.Prefix+stat, metric.Value)
 	return nil
 }
+
+func (d DebugSender) AppCreated(guid string) error {
+	log.Printf("app %s created\n", guid)
+	return nil
+}
+
+func (d DebugSender) AppDeleted(guid string) error {
+	log.Printf("app %s deleted\n", guid)
+	return nil
+}

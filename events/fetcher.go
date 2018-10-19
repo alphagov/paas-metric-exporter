@@ -28,6 +28,8 @@ type Fetcher struct {
 	config       *FetcherConfig
 	cfClient     *cfclient.Client
 	appEventChan chan *AppEvent
+	newAppChan   chan string
+	deletedAppChan chan string
 	errorChan    chan error
 	watchedApps  map[string]chan cfclient.App
 	sync.RWMutex
@@ -36,11 +38,15 @@ type Fetcher struct {
 func NewFetcher(
 	config *FetcherConfig,
 	appEventChan chan *AppEvent,
-	errorChan chan error,
+	newAppChan   chan string,
+	deletedAppChan chan string,
+	errorChan    chan error,
 ) *Fetcher {
 	return &Fetcher{
 		config:       config,
 		appEventChan: appEventChan,
+		newAppChan:   newAppChan,
+		deletedAppChan: deletedAppChan,
 		errorChan:    errorChan,
 		watchedApps:  make(map[string]chan cfclient.App),
 	}
@@ -118,11 +124,14 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 		}
 
 		msgs, errs := conn.Stream(app.Guid, authToken)
+
+		m.newAppChan <- app.Guid
 		log.Printf("Started reading %s events\n", app.Name)
 		for {
 			select {
 			case message, ok := <-msgs:
 				if !ok {
+					m.deletedAppChan <- app.Guid
 					log.Printf("Stopped reading %s events\n", app.Name)
 					return
 				}
