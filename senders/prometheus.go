@@ -140,7 +140,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 
 	for mk, mv := range metric.GetLabels() {
 		switch mk {
-		case "GUID":
+		case "GUID", "CellId":
 			continue
 		}
 		presented := s.presenter.Present(mk)
@@ -163,7 +163,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 func (s *PrometheusSender) buildLabelsFromMetric(metric metrics.Metric) (labelNames []string) {
 	for k := range metric.GetLabels() {
 		switch k {
-		case "GUID":
+		case "GUID", "CellId":
 			continue
 		}
 		presented := s.presenter.Present(k)
