@@ -233,14 +233,14 @@ func (a *Application) run() {
 			}
 		case newApp := <-a.newAppChan:
 			for _, sender := range a.senders {
-				err := sender.AppCreated(newApp)
+				err := sender.AppInstanceCreated(newApp)
 				if err != nil {
 					log.Printf("registering app failed %v\n", err)
 				}
 			}
 		case deletedApp := <-a.deletedAppChan:
 			for _, sender := range a.senders {
-				err := sender.AppDeleted(deletedApp)
+				err := sender.AppInstanceDeleted(deletedApp)
 				if err != nil {
 					log.Printf("unregistering app failed %v\n", err)
 				}

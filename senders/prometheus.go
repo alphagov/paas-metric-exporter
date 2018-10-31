@@ -44,6 +44,7 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		gaugeVec = *prometheus.NewGaugeVec(options, labelNames)
@@ -74,6 +75,7 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		counterVec = *prometheus.NewCounterVec(options, labelNames)
@@ -104,6 +106,7 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		histogramVec = *prometheus.NewHistogramVec(options, labelNames)
@@ -140,7 +143,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 
 	for mk, mv := range metric.GetLabels() {
 		switch mk {
-		case "GUID", "CellId", "Job":
+		case "GUID", "CellId", "Job", "Instance":
 			continue
 		}
 		presented := s.presenter.Present(mk)
@@ -163,7 +166,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 func (s *PrometheusSender) buildLabelsFromMetric(metric metrics.Metric) (labelNames []string) {
 	for k := range metric.GetLabels() {
 		switch k {
-		case "GUID", "CellId", "Job":
+		case "GUID", "CellId", "Job", "Instance":
 			continue
 		}
 		presented := s.presenter.Present(k)
@@ -173,12 +176,12 @@ func (s *PrometheusSender) buildLabelsFromMetric(metric metrics.Metric) (labelNa
 	return labelNames
 }
 
-func (s PrometheusSender) AppCreated(guid string) error {
+func (s PrometheusSender) AppInstanceCreated(guidInstance string) error {
 	return nil
 }
 
-func (s PrometheusSender) AppDeleted(guid string) error {
-	appMetrics := s.appMetrics[guid]
+func (s PrometheusSender) AppInstanceDeleted(guidInstance string) error {
+	appMetrics := s.appMetrics[guidInstance]
 	for _, v := range appMetrics.counterVecs {
 		v.Reset()
 	}
@@ -188,6 +191,6 @@ func (s PrometheusSender) AppDeleted(guid string) error {
 	for _, v := range appMetrics.histogramVecs {
 		v.Reset()
 	}
-	delete(s.appMetrics, guid)
+	delete(s.appMetrics, guidInstance)
 	return nil
 }

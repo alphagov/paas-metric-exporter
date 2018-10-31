@@ -2,17 +2,16 @@
 package mocks
 
 import (
-	sync "sync"
+	"sync"
 
-	events "github.com/alphagov/paas-metric-exporter/events"
+	"github.com/alphagov/paas-metric-exporter/events"
 )
 
 type FakeFetcherProcess struct {
 	RunStub        func() error
 	runMutex       sync.RWMutex
-	runArgsForCall []struct {
-	}
-	runReturns struct {
+	runArgsForCall []struct{}
+	runReturns     struct {
 		result1 error
 	}
 	runReturnsOnCall map[int]struct {
@@ -25,8 +24,7 @@ type FakeFetcherProcess struct {
 func (fake *FakeFetcherProcess) Run() error {
 	fake.runMutex.Lock()
 	ret, specificReturn := fake.runReturnsOnCall[len(fake.runArgsForCall)]
-	fake.runArgsForCall = append(fake.runArgsForCall, struct {
-	}{})
+	fake.runArgsForCall = append(fake.runArgsForCall, struct{}{})
 	fake.recordInvocation("Run", []interface{}{})
 	fake.runMutex.Unlock()
 	if fake.RunStub != nil {
@@ -35,8 +33,7 @@ func (fake *FakeFetcherProcess) Run() error {
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.runReturns
-	return fakeReturns.result1
+	return fake.runReturns.result1
 }
 
 func (fake *FakeFetcherProcess) RunCallCount() int {
@@ -45,15 +42,7 @@ func (fake *FakeFetcherProcess) RunCallCount() int {
 	return len(fake.runArgsForCall)
 }
 
-func (fake *FakeFetcherProcess) RunCalls(stub func() error) {
-	fake.runMutex.Lock()
-	defer fake.runMutex.Unlock()
-	fake.RunStub = stub
-}
-
 func (fake *FakeFetcherProcess) RunReturns(result1 error) {
-	fake.runMutex.Lock()
-	defer fake.runMutex.Unlock()
 	fake.RunStub = nil
 	fake.runReturns = struct {
 		result1 error
@@ -61,8 +50,6 @@ func (fake *FakeFetcherProcess) RunReturns(result1 error) {
 }
 
 func (fake *FakeFetcherProcess) RunReturnsOnCall(i int, result1 error) {
-	fake.runMutex.Lock()
-	defer fake.runMutex.Unlock()
 	fake.RunStub = nil
 	if fake.runReturnsOnCall == nil {
 		fake.runReturnsOnCall = make(map[int]struct {

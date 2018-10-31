@@ -2,6 +2,7 @@ package events
 
 import (
 	"crypto/tls"
+	"fmt"
 	"log"
 	"net/url"
 	"strings"
@@ -125,13 +126,17 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 
 		msgs, errs := conn.Stream(app.Guid, authToken)
 
-		m.newAppChan <- app.Guid
+		for i := 0; i < app.Instances; i++ {
+			m.newAppChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+		}
+
 		log.Printf("Started reading %s events\n", app.Name)
 		for {
 			select {
 			case message, ok := <-msgs:
 				if !ok {
 					m.deletedAppChan <- app.Guid
+
 					log.Printf("Stopped reading %s events\n", app.Name)
 					return
 				}
@@ -153,6 +158,16 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 					appChan = nil
 					conn.Close()
 					continue
+				}
+
+				if updatedApp.Instances > app.Instances {
+					for i := app.Instances; i < updatedApp.Instances; i++ {
+						m.newAppChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+					}
+				} else if updatedApp.Instances < app.Instances {
+					for i := updatedApp.Instances; i < app.Instances; i++ {
+						m.deletedAppChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+					}
 				}
 				app = updatedApp
 			}

@@ -49,10 +49,10 @@ func (s StatsdSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) erro
 	return s.Client.PrecisionTiming(stat, metric.Value)
 }
 
-func (d StatsdSender) AppCreated(guid string) error {
+func (d StatsdSender) AppInstanceCreated(guidInstance string) error {
 	return nil
 }
 
-func (d StatsdSender) AppDeleted(guid string) error {
+func (d StatsdSender) AppInstanceDeleted(guidInstance string) error {
 	return nil
 }
