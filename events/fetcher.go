@@ -135,7 +135,9 @@ func (m *Fetcher) startStream(app cfclient.App) chan cfclient.App {
 			select {
 			case message, ok := <-msgs:
 				if !ok {
-					m.deletedAppChan <- app.Guid
+					for i := 0; i < app.Instances; i++ {
+						m.deletedAppChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+					}
 
 					log.Printf("Stopped reading %s events\n", app.Name)
 					return

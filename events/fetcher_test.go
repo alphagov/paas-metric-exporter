@@ -277,6 +277,55 @@ var _ = Describe("Fetcher", func() {
 			})
 		})
 
+		Context("all app instances are deleted", func() {
+			var appsBeforeDelete []cfclient.App
+			var appsAfterDelete []cfclient.App
+			BeforeEach(func() {
+				appsBeforeDelete = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 2, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+				appsAfterDelete = []cfclient.App{}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeDelete)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterDelete)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+				)
+			})
+
+			It("deletes all the app's instances", func() {
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Expect(fetcher.updateApps()).To(Succeed())
+
+				Eventually(appEventChan).Should(Receive())
+				Eventually(deletedAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(deletedAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+			})
+		})
+
 		Context("no watchers and no running apps", func() {
 			BeforeEach(func() {
 				apps = []cfclient.App{}
