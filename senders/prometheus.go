@@ -1,6 +1,7 @@
 package senders
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/alphagov/paas-metric-exporter/metrics"
@@ -33,7 +34,7 @@ func NewPrometheusSender() *PrometheusSender {
 func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
 
 	gaugeVec, present := appMetrics.gaugeVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
@@ -64,7 +65,7 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
 
 	counterVec, present := appMetrics.counterVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
@@ -95,7 +96,7 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
 
 	histogramVec, present := appMetrics.histogramVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
@@ -123,15 +124,17 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 	return nil
 }
 
-func (s *PrometheusSender) getOrCreateAppMetrics(guid string) appMetrics {
-	m, present := s.appMetrics[guid]
+func (s *PrometheusSender) getOrCreateAppMetrics(guid string, instance string) appMetrics {
+	guidInstance := fmt.Sprintf("%s:%s", guid, instance)
+
+	m, present := s.appMetrics[guidInstance]
 	if !present {
 		newM := appMetrics{
 			counterVecs:   make(map[string]prometheus.CounterVec),
 			gaugeVecs:     make(map[string]prometheus.GaugeVec),
 			histogramVecs: make(map[string]prometheus.HistogramVec),
 		}
-		s.appMetrics[guid] = newM
+		s.appMetrics[guidInstance] = newM
 		return newM
 	}
 	return m
