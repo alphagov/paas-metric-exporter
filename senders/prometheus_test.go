@@ -110,6 +110,40 @@ var _ = Describe("PrometheusSender", func() {
 			Expect(metadata.GetName()).To(Equal("status_range"))
 			Expect(metadata.GetValue()).To(Equal("2xx"))
 		})
+
+		It("removes instance metrics when an instance is deleted", func() {
+			sender.Incr(CounterMetric{
+				Metric:   "multiple_instances_metrics",
+				Value:    1,
+				App:      "some_value",
+				GUID:     "test-guid",
+				Instance:	"0",
+			})
+			sender.Incr(CounterMetric{
+				Metric:   "multiple_instances_metrics",
+				Value:    2,
+				App:      "some_value",
+				GUID:   	"test-guid",
+				Instance:	"1",
+			})
+			sender.Incr(CounterMetric{
+				Metric:   "multiple_instances_metrics",
+				Value:    3,
+				App:      "some_value",
+				GUID:   	"test-guid",
+				Instance:	"2",
+			})
+
+			metrics := get_metrics("multiple_instances_metrics")
+			Expect(len(metrics)).To(Equal(3))
+
+			sender.AppInstanceDeleted("test-guid:2")
+
+			metrics = get_metrics("multiple_instances_metrics")
+			Expect(len(metrics)).To(Equal(2))
+			Expect(metrics[0].Counter.GetValue()).To(Equal(float64(1)))
+			Expect(metrics[1].Counter.GetValue()).To(Equal(float64(2)))
+		})
 	})
 
 	Describe("#Gauge", func() {
@@ -199,4 +233,16 @@ Outer:
 	}
 
 	return subtracted
+}
+
+func get_metrics(metric_name string) []*io_prometheus_client.Metric {
+	gatherer := prometheus.DefaultGatherer
+	families, _ := gatherer.Gather()
+
+	for _, f := range families {
+		if f.GetName() == metric_name {
+			return f.GetMetric()
+		}
+	}
+	return nil
 }
