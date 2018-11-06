@@ -117,21 +117,21 @@ var _ = Describe("PrometheusSender", func() {
 				Value:    1,
 				App:      "some_value",
 				GUID:     "test-guid",
-				Instance:	"0",
+				Instance: "0",
 			})
 			sender.Incr(CounterMetric{
 				Metric:   "multiple_instances_metrics",
 				Value:    2,
 				App:      "some_value",
-				GUID:   	"test-guid",
-				Instance:	"1",
+				GUID:     "test-guid",
+				Instance: "1",
 			})
 			sender.Incr(CounterMetric{
 				Metric:   "multiple_instances_metrics",
 				Value:    3,
 				App:      "some_value",
-				GUID:   	"test-guid",
-				Instance:	"2",
+				GUID:     "test-guid",
+				Instance: "2",
 			})
 
 			metrics := get_metrics("multiple_instances_metrics")

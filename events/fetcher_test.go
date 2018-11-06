@@ -26,16 +26,16 @@ type TokenErr struct {
 
 var _ = Describe("Fetcher", func() {
 	var (
-		apiServer      *ghttp.Server
-		tcServer       *ghttp.Server
-		tcHandler      mockWebsocketHandler
-		endpoint       cfclient.Endpoint
-		token          oauth2.Token
-		fetcher        *Fetcher
-		appEventChan   chan *AppEvent
-		newAppChan     chan string
-		deletedAppChan chan string
-		errorChan      chan error
+		apiServer              *ghttp.Server
+		tcServer               *ghttp.Server
+		tcHandler              mockWebsocketHandler
+		endpoint               cfclient.Endpoint
+		token                  oauth2.Token
+		fetcher                *Fetcher
+		appEventChan           chan *AppEvent
+		newAppInstanceChan     chan string
+		deletedAppInstanceChan chan string
+		errorChan              chan error
 	)
 
 	BeforeEach(func() {
@@ -91,9 +91,9 @@ var _ = Describe("Fetcher", func() {
 		}
 		appEventChan = make(chan *AppEvent, 10)
 		errorChan = make(chan error, 10)
-		newAppChan = make(chan string, 10)
-		deletedAppChan = make(chan string, 10)
-		fetcher = NewFetcher(config, appEventChan, newAppChan, deletedAppChan, errorChan)
+		newAppInstanceChan = make(chan string, 10)
+		deletedAppInstanceChan = make(chan string, 10)
+		fetcher = NewFetcher(config, appEventChan, newAppInstanceChan, deletedAppInstanceChan, errorChan)
 		fetcher.authenticate()
 	})
 
@@ -102,10 +102,10 @@ var _ = Describe("Fetcher", func() {
 		close(appEventChan)
 		Expect(errorChan).To(BeEmpty())
 		close(errorChan)
-		Expect(newAppChan).To(BeEmpty())
-		close(newAppChan)
-		Expect(deletedAppChan).To(BeEmpty())
-		close(deletedAppChan)
+		Expect(newAppInstanceChan).To(BeEmpty())
+		close(newAppInstanceChan)
+		Expect(deletedAppInstanceChan).To(BeEmpty())
+		close(deletedAppInstanceChan)
 		log.SetOutput(os.Stdout)
 	})
 
@@ -161,7 +161,7 @@ var _ = Describe("Fetcher", func() {
 
 				var eventBeforeRename *AppEvent
 				Eventually(appEventChan).Should(Receive(&eventBeforeRename))
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
@@ -217,12 +217,11 @@ var _ = Describe("Fetcher", func() {
 
 			It("updates the number of instances", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 
 				Expect(fetcher.updateApps()).To(Succeed())
-				Eventually(deletedAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
-				// we are not really expecting appEventChan to have a message
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 				Eventually(appEventChan).Should(Receive())
 			})
 		})
@@ -268,11 +267,10 @@ var _ = Describe("Fetcher", func() {
 
 			It("updates the number of instances", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
 
 				Expect(fetcher.updateApps()).To(Succeed())
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
-				// we are not really expecting appEventChan to have a message
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 				Eventually(appEventChan).Should(Receive())
 			})
 		})
@@ -316,13 +314,13 @@ var _ = Describe("Fetcher", func() {
 
 			It("deletes all the app's instances", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 				Expect(fetcher.updateApps()).To(Succeed())
 
 				Eventually(appEventChan).Should(Receive())
-				Eventually(deletedAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
-				Eventually(deletedAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 			})
 		})
 
@@ -402,7 +400,7 @@ var _ = Describe("Fetcher", func() {
 					}
 					Eventually(inMap).Should(BeTrue())
 					Eventually(appEventChan).Should(Receive())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -413,7 +411,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
-					Eventually(deletedAppChan).Should(Receive())
+					Eventually(deletedAppInstanceChan).Should(Receive())
 				}
 			})
 		})
@@ -497,7 +495,7 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
 					Eventually(appEventChan).Should(Receive())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -509,7 +507,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
-					Eventually(deletedAppChan).Should(Receive())
+					Eventually(deletedAppInstanceChan).Should(Receive())
 				}
 
 				newApps := apps[1:]
@@ -520,7 +518,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 			})
 		})

@@ -2,49 +2,16 @@
 package mocks
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/alphagov/paas-metric-exporter/metrics"
+	metrics "github.com/alphagov/paas-metric-exporter/metrics"
 )
 
 type FakeSender struct {
-	GaugeStub        func(metric metrics.GaugeMetric) error
-	gaugeMutex       sync.RWMutex
-	gaugeArgsForCall []struct {
-		metric metrics.GaugeMetric
-	}
-	gaugeReturns struct {
-		result1 error
-	}
-	gaugeReturnsOnCall map[int]struct {
-		result1 error
-	}
-	IncrStub        func(metric metrics.CounterMetric) error
-	incrMutex       sync.RWMutex
-	incrArgsForCall []struct {
-		metric metrics.CounterMetric
-	}
-	incrReturns struct {
-		result1 error
-	}
-	incrReturnsOnCall map[int]struct {
-		result1 error
-	}
-	PrecisionTimingStub        func(metric metrics.PrecisionTimingMetric) error
-	precisionTimingMutex       sync.RWMutex
-	precisionTimingArgsForCall []struct {
-		metric metrics.PrecisionTimingMetric
-	}
-	precisionTimingReturns struct {
-		result1 error
-	}
-	precisionTimingReturnsOnCall map[int]struct {
-		result1 error
-	}
-	AppInstanceCreatedStub        func(guidInstance string) error
+	AppInstanceCreatedStub        func(string) error
 	appInstanceCreatedMutex       sync.RWMutex
 	appInstanceCreatedArgsForCall []struct {
-		guidInstance string
+		arg1 string
 	}
 	appInstanceCreatedReturns struct {
 		result1 error
@@ -52,10 +19,10 @@ type FakeSender struct {
 	appInstanceCreatedReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppInstanceDeletedStub        func(guidInstance string) error
+	AppInstanceDeletedStub        func(string) error
 	appInstanceDeletedMutex       sync.RWMutex
 	appInstanceDeletedArgsForCall []struct {
-		guidInstance string
+		arg1 string
 	}
 	appInstanceDeletedReturns struct {
 		result1 error
@@ -63,169 +30,59 @@ type FakeSender struct {
 	appInstanceDeletedReturnsOnCall map[int]struct {
 		result1 error
 	}
+	GaugeStub        func(metrics.GaugeMetric) error
+	gaugeMutex       sync.RWMutex
+	gaugeArgsForCall []struct {
+		arg1 metrics.GaugeMetric
+	}
+	gaugeReturns struct {
+		result1 error
+	}
+	gaugeReturnsOnCall map[int]struct {
+		result1 error
+	}
+	IncrStub        func(metrics.CounterMetric) error
+	incrMutex       sync.RWMutex
+	incrArgsForCall []struct {
+		arg1 metrics.CounterMetric
+	}
+	incrReturns struct {
+		result1 error
+	}
+	incrReturnsOnCall map[int]struct {
+		result1 error
+	}
+	PrecisionTimingStub        func(metrics.PrecisionTimingMetric) error
+	precisionTimingMutex       sync.RWMutex
+	precisionTimingArgsForCall []struct {
+		arg1 metrics.PrecisionTimingMetric
+	}
+	precisionTimingReturns struct {
+		result1 error
+	}
+	precisionTimingReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeSender) Gauge(metric metrics.GaugeMetric) error {
-	fake.gaugeMutex.Lock()
-	ret, specificReturn := fake.gaugeReturnsOnCall[len(fake.gaugeArgsForCall)]
-	fake.gaugeArgsForCall = append(fake.gaugeArgsForCall, struct {
-		metric metrics.GaugeMetric
-	}{metric})
-	fake.recordInvocation("Gauge", []interface{}{metric})
-	fake.gaugeMutex.Unlock()
-	if fake.GaugeStub != nil {
-		return fake.GaugeStub(metric)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.gaugeReturns.result1
-}
-
-func (fake *FakeSender) GaugeCallCount() int {
-	fake.gaugeMutex.RLock()
-	defer fake.gaugeMutex.RUnlock()
-	return len(fake.gaugeArgsForCall)
-}
-
-func (fake *FakeSender) GaugeArgsForCall(i int) metrics.GaugeMetric {
-	fake.gaugeMutex.RLock()
-	defer fake.gaugeMutex.RUnlock()
-	return fake.gaugeArgsForCall[i].metric
-}
-
-func (fake *FakeSender) GaugeReturns(result1 error) {
-	fake.GaugeStub = nil
-	fake.gaugeReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) GaugeReturnsOnCall(i int, result1 error) {
-	fake.GaugeStub = nil
-	if fake.gaugeReturnsOnCall == nil {
-		fake.gaugeReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.gaugeReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) Incr(metric metrics.CounterMetric) error {
-	fake.incrMutex.Lock()
-	ret, specificReturn := fake.incrReturnsOnCall[len(fake.incrArgsForCall)]
-	fake.incrArgsForCall = append(fake.incrArgsForCall, struct {
-		metric metrics.CounterMetric
-	}{metric})
-	fake.recordInvocation("Incr", []interface{}{metric})
-	fake.incrMutex.Unlock()
-	if fake.IncrStub != nil {
-		return fake.IncrStub(metric)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.incrReturns.result1
-}
-
-func (fake *FakeSender) IncrCallCount() int {
-	fake.incrMutex.RLock()
-	defer fake.incrMutex.RUnlock()
-	return len(fake.incrArgsForCall)
-}
-
-func (fake *FakeSender) IncrArgsForCall(i int) metrics.CounterMetric {
-	fake.incrMutex.RLock()
-	defer fake.incrMutex.RUnlock()
-	return fake.incrArgsForCall[i].metric
-}
-
-func (fake *FakeSender) IncrReturns(result1 error) {
-	fake.IncrStub = nil
-	fake.incrReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) IncrReturnsOnCall(i int, result1 error) {
-	fake.IncrStub = nil
-	if fake.incrReturnsOnCall == nil {
-		fake.incrReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.incrReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error {
-	fake.precisionTimingMutex.Lock()
-	ret, specificReturn := fake.precisionTimingReturnsOnCall[len(fake.precisionTimingArgsForCall)]
-	fake.precisionTimingArgsForCall = append(fake.precisionTimingArgsForCall, struct {
-		metric metrics.PrecisionTimingMetric
-	}{metric})
-	fake.recordInvocation("PrecisionTiming", []interface{}{metric})
-	fake.precisionTimingMutex.Unlock()
-	if fake.PrecisionTimingStub != nil {
-		return fake.PrecisionTimingStub(metric)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.precisionTimingReturns.result1
-}
-
-func (fake *FakeSender) PrecisionTimingCallCount() int {
-	fake.precisionTimingMutex.RLock()
-	defer fake.precisionTimingMutex.RUnlock()
-	return len(fake.precisionTimingArgsForCall)
-}
-
-func (fake *FakeSender) PrecisionTimingArgsForCall(i int) metrics.PrecisionTimingMetric {
-	fake.precisionTimingMutex.RLock()
-	defer fake.precisionTimingMutex.RUnlock()
-	return fake.precisionTimingArgsForCall[i].metric
-}
-
-func (fake *FakeSender) PrecisionTimingReturns(result1 error) {
-	fake.PrecisionTimingStub = nil
-	fake.precisionTimingReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) PrecisionTimingReturnsOnCall(i int, result1 error) {
-	fake.PrecisionTimingStub = nil
-	if fake.precisionTimingReturnsOnCall == nil {
-		fake.precisionTimingReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.precisionTimingReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSender) AppInstanceCreated(guidInstance string) error {
+func (fake *FakeSender) AppInstanceCreated(arg1 string) error {
 	fake.appInstanceCreatedMutex.Lock()
 	ret, specificReturn := fake.appInstanceCreatedReturnsOnCall[len(fake.appInstanceCreatedArgsForCall)]
 	fake.appInstanceCreatedArgsForCall = append(fake.appInstanceCreatedArgsForCall, struct {
-		guidInstance string
-	}{guidInstance})
-	fake.recordInvocation("AppInstanceCreated", []interface{}{guidInstance})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("AppInstanceCreated", []interface{}{arg1})
 	fake.appInstanceCreatedMutex.Unlock()
 	if fake.AppInstanceCreatedStub != nil {
-		return fake.AppInstanceCreatedStub(guidInstance)
+		return fake.AppInstanceCreatedStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.appInstanceCreatedReturns.result1
+	fakeReturns := fake.appInstanceCreatedReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeSender) AppInstanceCreatedCallCount() int {
@@ -234,13 +91,22 @@ func (fake *FakeSender) AppInstanceCreatedCallCount() int {
 	return len(fake.appInstanceCreatedArgsForCall)
 }
 
+func (fake *FakeSender) AppInstanceCreatedCalls(stub func(string) error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
+	fake.AppInstanceCreatedStub = stub
+}
+
 func (fake *FakeSender) AppInstanceCreatedArgsForCall(i int) string {
 	fake.appInstanceCreatedMutex.RLock()
 	defer fake.appInstanceCreatedMutex.RUnlock()
-	return fake.appInstanceCreatedArgsForCall[i].guidInstance
+	argsForCall := fake.appInstanceCreatedArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeSender) AppInstanceCreatedReturns(result1 error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
 	fake.AppInstanceCreatedStub = nil
 	fake.appInstanceCreatedReturns = struct {
 		result1 error
@@ -248,6 +114,8 @@ func (fake *FakeSender) AppInstanceCreatedReturns(result1 error) {
 }
 
 func (fake *FakeSender) AppInstanceCreatedReturnsOnCall(i int, result1 error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
 	fake.AppInstanceCreatedStub = nil
 	if fake.appInstanceCreatedReturnsOnCall == nil {
 		fake.appInstanceCreatedReturnsOnCall = make(map[int]struct {
@@ -259,21 +127,22 @@ func (fake *FakeSender) AppInstanceCreatedReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeSender) AppInstanceDeleted(guidInstance string) error {
+func (fake *FakeSender) AppInstanceDeleted(arg1 string) error {
 	fake.appInstanceDeletedMutex.Lock()
 	ret, specificReturn := fake.appInstanceDeletedReturnsOnCall[len(fake.appInstanceDeletedArgsForCall)]
 	fake.appInstanceDeletedArgsForCall = append(fake.appInstanceDeletedArgsForCall, struct {
-		guidInstance string
-	}{guidInstance})
-	fake.recordInvocation("AppInstanceDeleted", []interface{}{guidInstance})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("AppInstanceDeleted", []interface{}{arg1})
 	fake.appInstanceDeletedMutex.Unlock()
 	if fake.AppInstanceDeletedStub != nil {
-		return fake.AppInstanceDeletedStub(guidInstance)
+		return fake.AppInstanceDeletedStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.appInstanceDeletedReturns.result1
+	fakeReturns := fake.appInstanceDeletedReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeSender) AppInstanceDeletedCallCount() int {
@@ -282,13 +151,22 @@ func (fake *FakeSender) AppInstanceDeletedCallCount() int {
 	return len(fake.appInstanceDeletedArgsForCall)
 }
 
+func (fake *FakeSender) AppInstanceDeletedCalls(stub func(string) error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
+	fake.AppInstanceDeletedStub = stub
+}
+
 func (fake *FakeSender) AppInstanceDeletedArgsForCall(i int) string {
 	fake.appInstanceDeletedMutex.RLock()
 	defer fake.appInstanceDeletedMutex.RUnlock()
-	return fake.appInstanceDeletedArgsForCall[i].guidInstance
+	argsForCall := fake.appInstanceDeletedArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeSender) AppInstanceDeletedReturns(result1 error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
 	fake.AppInstanceDeletedStub = nil
 	fake.appInstanceDeletedReturns = struct {
 		result1 error
@@ -296,6 +174,8 @@ func (fake *FakeSender) AppInstanceDeletedReturns(result1 error) {
 }
 
 func (fake *FakeSender) AppInstanceDeletedReturnsOnCall(i int, result1 error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
 	fake.AppInstanceDeletedStub = nil
 	if fake.appInstanceDeletedReturnsOnCall == nil {
 		fake.appInstanceDeletedReturnsOnCall = make(map[int]struct {
@@ -307,19 +187,199 @@ func (fake *FakeSender) AppInstanceDeletedReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeSender) Gauge(arg1 metrics.GaugeMetric) error {
+	fake.gaugeMutex.Lock()
+	ret, specificReturn := fake.gaugeReturnsOnCall[len(fake.gaugeArgsForCall)]
+	fake.gaugeArgsForCall = append(fake.gaugeArgsForCall, struct {
+		arg1 metrics.GaugeMetric
+	}{arg1})
+	fake.recordInvocation("Gauge", []interface{}{arg1})
+	fake.gaugeMutex.Unlock()
+	if fake.GaugeStub != nil {
+		return fake.GaugeStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.gaugeReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeSender) GaugeCallCount() int {
+	fake.gaugeMutex.RLock()
+	defer fake.gaugeMutex.RUnlock()
+	return len(fake.gaugeArgsForCall)
+}
+
+func (fake *FakeSender) GaugeCalls(stub func(metrics.GaugeMetric) error) {
+	fake.gaugeMutex.Lock()
+	defer fake.gaugeMutex.Unlock()
+	fake.GaugeStub = stub
+}
+
+func (fake *FakeSender) GaugeArgsForCall(i int) metrics.GaugeMetric {
+	fake.gaugeMutex.RLock()
+	defer fake.gaugeMutex.RUnlock()
+	argsForCall := fake.gaugeArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeSender) GaugeReturns(result1 error) {
+	fake.gaugeMutex.Lock()
+	defer fake.gaugeMutex.Unlock()
+	fake.GaugeStub = nil
+	fake.gaugeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSender) GaugeReturnsOnCall(i int, result1 error) {
+	fake.gaugeMutex.Lock()
+	defer fake.gaugeMutex.Unlock()
+	fake.GaugeStub = nil
+	if fake.gaugeReturnsOnCall == nil {
+		fake.gaugeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.gaugeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSender) Incr(arg1 metrics.CounterMetric) error {
+	fake.incrMutex.Lock()
+	ret, specificReturn := fake.incrReturnsOnCall[len(fake.incrArgsForCall)]
+	fake.incrArgsForCall = append(fake.incrArgsForCall, struct {
+		arg1 metrics.CounterMetric
+	}{arg1})
+	fake.recordInvocation("Incr", []interface{}{arg1})
+	fake.incrMutex.Unlock()
+	if fake.IncrStub != nil {
+		return fake.IncrStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.incrReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeSender) IncrCallCount() int {
+	fake.incrMutex.RLock()
+	defer fake.incrMutex.RUnlock()
+	return len(fake.incrArgsForCall)
+}
+
+func (fake *FakeSender) IncrCalls(stub func(metrics.CounterMetric) error) {
+	fake.incrMutex.Lock()
+	defer fake.incrMutex.Unlock()
+	fake.IncrStub = stub
+}
+
+func (fake *FakeSender) IncrArgsForCall(i int) metrics.CounterMetric {
+	fake.incrMutex.RLock()
+	defer fake.incrMutex.RUnlock()
+	argsForCall := fake.incrArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeSender) IncrReturns(result1 error) {
+	fake.incrMutex.Lock()
+	defer fake.incrMutex.Unlock()
+	fake.IncrStub = nil
+	fake.incrReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSender) IncrReturnsOnCall(i int, result1 error) {
+	fake.incrMutex.Lock()
+	defer fake.incrMutex.Unlock()
+	fake.IncrStub = nil
+	if fake.incrReturnsOnCall == nil {
+		fake.incrReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.incrReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSender) PrecisionTiming(arg1 metrics.PrecisionTimingMetric) error {
+	fake.precisionTimingMutex.Lock()
+	ret, specificReturn := fake.precisionTimingReturnsOnCall[len(fake.precisionTimingArgsForCall)]
+	fake.precisionTimingArgsForCall = append(fake.precisionTimingArgsForCall, struct {
+		arg1 metrics.PrecisionTimingMetric
+	}{arg1})
+	fake.recordInvocation("PrecisionTiming", []interface{}{arg1})
+	fake.precisionTimingMutex.Unlock()
+	if fake.PrecisionTimingStub != nil {
+		return fake.PrecisionTimingStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.precisionTimingReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeSender) PrecisionTimingCallCount() int {
+	fake.precisionTimingMutex.RLock()
+	defer fake.precisionTimingMutex.RUnlock()
+	return len(fake.precisionTimingArgsForCall)
+}
+
+func (fake *FakeSender) PrecisionTimingCalls(stub func(metrics.PrecisionTimingMetric) error) {
+	fake.precisionTimingMutex.Lock()
+	defer fake.precisionTimingMutex.Unlock()
+	fake.PrecisionTimingStub = stub
+}
+
+func (fake *FakeSender) PrecisionTimingArgsForCall(i int) metrics.PrecisionTimingMetric {
+	fake.precisionTimingMutex.RLock()
+	defer fake.precisionTimingMutex.RUnlock()
+	argsForCall := fake.precisionTimingArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeSender) PrecisionTimingReturns(result1 error) {
+	fake.precisionTimingMutex.Lock()
+	defer fake.precisionTimingMutex.Unlock()
+	fake.PrecisionTimingStub = nil
+	fake.precisionTimingReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSender) PrecisionTimingReturnsOnCall(i int, result1 error) {
+	fake.precisionTimingMutex.Lock()
+	defer fake.precisionTimingMutex.Unlock()
+	fake.PrecisionTimingStub = nil
+	if fake.precisionTimingReturnsOnCall == nil {
+		fake.precisionTimingReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.precisionTimingReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeSender) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.appInstanceCreatedMutex.RLock()
+	defer fake.appInstanceCreatedMutex.RUnlock()
+	fake.appInstanceDeletedMutex.RLock()
+	defer fake.appInstanceDeletedMutex.RUnlock()
 	fake.gaugeMutex.RLock()
 	defer fake.gaugeMutex.RUnlock()
 	fake.incrMutex.RLock()
 	defer fake.incrMutex.RUnlock()
 	fake.precisionTimingMutex.RLock()
 	defer fake.precisionTimingMutex.RUnlock()
-	fake.appInstanceCreatedMutex.RLock()
-	defer fake.appInstanceCreatedMutex.RUnlock()
-	fake.appInstanceDeletedMutex.RLock()
-	defer fake.appInstanceDeletedMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

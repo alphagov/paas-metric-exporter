@@ -77,16 +77,16 @@ func NewLocketConfig(addr, caCert, clientCert, clientKey *string) locket.ClientL
 
 // Application is the main application logic
 type Application struct {
-	config         *Config
-	processors     map[sonde_events.Envelope_EventType]processors.Processor
-	eventFetcher   events.FetcherProcess
-	senders        []metrics.Sender
-	appEventChan   chan *events.AppEvent
-	newAppChan     chan string
-	deletedAppChan chan string
-	errorChan      chan error
-	exitChan       chan bool
-	logger         lager.Logger
+	config                 *Config
+	processors             map[sonde_events.Envelope_EventType]processors.Processor
+	eventFetcher           events.FetcherProcess
+	senders                []metrics.Sender
+	appEventChan           chan *events.AppEvent
+	newAppInstanceChan     chan string
+	deletedAppInstanceChan chan string
+	errorChan              chan error
+	exitChan               chan bool
+	logger                 lager.Logger
 }
 
 // NewApplication creates a new application instance
@@ -105,25 +105,25 @@ func NewApplication(
 		UpdateFrequency: config.CFAppUpdateFrequency,
 	}
 	appEventChan := make(chan *events.AppEvent)
-	newAppChan := make(chan string)
-	deletedAppChan := make(chan string)
+	newAppInstanceChan := make(chan string)
+	deletedAppInstanceChan := make(chan string)
 	errorChan := make(chan error)
-	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, newAppChan, deletedAppChan, errorChan)
+	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, newAppInstanceChan, deletedAppInstanceChan, errorChan)
 
 	logger := lager.NewLogger("metric-exporter")
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))
 
 	return &Application{
-		config:         config,
-		processors:     processors,
-		senders:        senders,
-		eventFetcher:   eventFetcher,
-		appEventChan:   appEventChan,
-		newAppChan:     newAppChan,
-		deletedAppChan: deletedAppChan,
-		errorChan:      errorChan,
-		exitChan:       make(chan bool),
-		logger:         logger,
+		config:                 config,
+		processors:             processors,
+		senders:                senders,
+		eventFetcher:           eventFetcher,
+		appEventChan:           appEventChan,
+		newAppInstanceChan:     newAppInstanceChan,
+		deletedAppInstanceChan: deletedAppInstanceChan,
+		errorChan:              errorChan,
+		exitChan:               make(chan bool),
+		logger:                 logger,
 	}
 }
 
@@ -231,16 +231,16 @@ func (a *Application) run() {
 					}
 				}
 			}
-		case newApp := <-a.newAppChan:
+		case newAppInstance := <-a.newAppInstanceChan:
 			for _, sender := range a.senders {
-				err := sender.AppInstanceCreated(newApp)
+				err := sender.AppInstanceCreated(newAppInstance)
 				if err != nil {
 					log.Printf("registering app failed %v\n", err)
 				}
 			}
-		case deletedApp := <-a.deletedAppChan:
+		case deletedAppInstance := <-a.deletedAppInstanceChan:
 			for _, sender := range a.senders {
-				err := sender.AppInstanceDeleted(deletedApp)
+				err := sender.AppInstanceDeleted(deletedAppInstance)
 				if err != nil {
 					log.Printf("unregistering app failed %v\n", err)
 				}
