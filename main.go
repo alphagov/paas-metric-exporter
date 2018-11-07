@@ -38,6 +38,7 @@ var (
 	locketCACert       = kingpin.Flag("locket-ca-cert", "File path to Locket CA certificate.").Default("").OverrideDefaultFromEnvar("LOCKET_CA_CERT").String()
 	locketClientCert   = kingpin.Flag("locket-client-cert", "File path to Locket client certificate.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_CERT").String()
 	locketClientKey    = kingpin.Flag("locket-client-key", "File path to Locket client key.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_KEY").String()
+	logCacheAPI        = kingpin.Flag("log-cache-api", "The log-cache API URL.").Required().OverrideDefaultFromEnvar("LOG_CACHE_API").Short('a').String()
 )
 
 func normalizePrefix(prefix string) string {
@@ -133,6 +134,6 @@ func main() {
 		}
 	}
 
-	app := app.NewApplication(config, processors, metricSenders)
+	app := app.NewApplication(config, *logCacheAPI, processors, metricSenders)
 	app.Start(*enableLocking)
 }

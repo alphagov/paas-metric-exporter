@@ -92,6 +92,7 @@ type Application struct {
 // NewApplication creates a new application instance
 func NewApplication(
 	config *Config,
+	logCacheAPI string,
 	processors map[sonde_events.Envelope_EventType]processors.Processor,
 	senders []metrics.Sender,
 ) *Application {
@@ -108,7 +109,7 @@ func NewApplication(
 	newAppChan := make(chan string)
 	deletedAppChan := make(chan string)
 	errorChan := make(chan error)
-	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, newAppChan, deletedAppChan, errorChan)
+	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, logCacheAPI, newAppChan, deletedAppChan, errorChan)
 
 	logger := lager.NewLogger("metric-exporter")
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))

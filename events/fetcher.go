@@ -1,13 +1,16 @@
 package events
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"code.cloudfoundry.org/go-log-cache"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
@@ -27,17 +30,22 @@ type FetcherConfig struct {
 type Fetcher struct {
 	config         *FetcherConfig
 	cfClient       *cfclient.Client
+	logCacheAPI    string
 	appEventChan   chan *AppEvent
+	serviceEventChan   chan *ServiceEvent
 	newAppChan     chan string
+	newServiceChan  chan string
 	deletedAppChan chan string
 	errorChan      chan error
 	watchedApps    map[string]chan cfclient.App
+	watchedServices map [string] chan cfclient.Service
 	sync.RWMutex
 }
 
 func NewFetcher(
 	config *FetcherConfig,
 	appEventChan chan *AppEvent,
+	logCacheAPI string,
 	newAppChan chan string,
 	deletedAppChan chan string,
 	errorChan chan error,
@@ -45,6 +53,7 @@ func NewFetcher(
 	return &Fetcher{
 		config:         config,
 		appEventChan:   appEventChan,
+		logCacheAPI: logCacheAPI,
 		newAppChan:     newAppChan,
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
@@ -77,6 +86,14 @@ func (m *Fetcher) Run() error {
 
 		for {
 			err := m.updateApps()
+			if err != nil {
+				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
+					log.Printf("Authentication error: %v\n", err)
+					break
+				}
+				return err
+			}
+			err = m.updateServices()
 			if err != nil {
 				if strings.Contains(err.Error(), `"error":"invalid_token"`) {
 					log.Printf("Authentication error: %v\n", err)
@@ -226,3 +243,93 @@ func updateAppSpaceData(app *cfclient.App) error {
 	}
 	return nil
 }
+
+
+func (m *Fetcher) getServices() ([]cfclient.Service, error) {
+	q := url.Values{}
+	services, err := m.cfClient.ListServicesByQuery(q)
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+func (m *Fetcher) updateServices() error {
+	services, err := m.getServices()
+	if err != nil {
+		return err
+	}
+
+	running := map[string]bool{}
+	for _, service := range services {
+		running[service.Guid] = true
+		if serviceChan, ok := m.watchedServices[service.Guid]; ok {
+			serviceChan <- service
+		} else {
+			serviceChan = m.startServiceStream(service)
+			m.watchedServices[service.Guid] = serviceChan
+		}
+	}
+
+	return nil
+}
+
+type authorizationHeaderSendingHTTPClient struct {
+	token string
+}
+
+func (mC *authorizationHeaderSendingHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", mC.token)
+
+	c := http.Client{}
+
+	return c.Do(req)
+}
+
+func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Service {
+	serviceChan := make(chan cfclient.Service)
+	go func() {
+		// TODO: go to log cache, as per code below
+		defer func() {
+			m.Lock()
+			defer m.Unlock()
+			delete(m.watchedApps, service.Guid)
+		}()
+
+		authToken, err := m.cfClient.GetToken()
+		if err != nil {
+			m.errorChan <- err
+			return
+		}
+		client := logcache.NewClient(m.logCacheAPI, logcache.WithHTTPClient(&authorizationHeaderSendingHTTPClient{
+			token: authToken,
+		}))
+
+
+		eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(m.config.EventTypes))
+		for _, eventType := range m.config.EventTypes {
+			eventTypesMap[eventType] = true
+		}
+
+		m.newServiceChan <- service.Guid
+		log.Printf("Started reading %s events\n", service.Label)
+		for {
+			ctx := context.Background()
+			envelopes, e := client.Read(ctx, service.Guid, time.Now())
+			if e != nil {
+				m.errorChan <- e
+				continue
+			}
+			for _, envelope := range envelopes {
+				stream := ServiceEvent{Envelope: envelope, Service: service}
+				gauge := envelope.GetGauge()
+				if gauge != nil {
+					m.serviceEventChan <- &stream
+				}
+				// TODO: other event types
+			}
+		}
+	}()
+	return serviceChan
+}
+
