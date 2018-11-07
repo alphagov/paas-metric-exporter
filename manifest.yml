@@ -3,7 +3,8 @@ applications:
 - name: metric-exporter
   memory: 100M
   instances: 1
-  buildpack: go_buildpack
+  buildpacks:
+    - go_buildpack
   env:
     GOPACKAGENAME: github.com/alphagov/paas-metric-exporter
   health-check-type: none
