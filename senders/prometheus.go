@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type appMetrics struct {
+type appInstanceMetrics struct {
 	counterVecs   map[string]prometheus.CounterVec
 	gaugeVecs     map[string]prometheus.GaugeVec
 	histogramVecs map[string]prometheus.HistogramVec
@@ -17,7 +17,7 @@ type appMetrics struct {
 
 type PrometheusSender struct {
 	presenter  presenters.SnakeCasePresenter
-	appMetrics map[string]appMetrics
+	appInstanceMetrics map[string]appInstanceMetrics
 }
 
 var _ metrics.Sender = &PrometheusSender{}
@@ -27,16 +27,16 @@ func NewPrometheusSender() *PrometheusSender {
 
 	return &PrometheusSender{
 		presenter,
-		make(map[string]appMetrics),
+		make(map[string]appInstanceMetrics),
 	}
 }
 
 func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	gaugeVec, present := appMetrics.gaugeVecs[name]
+	gaugeVec, present := appInstanceMetrics.gaugeVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -51,7 +51,7 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 		gaugeVec = *prometheus.NewGaugeVec(options, labelNames)
 
 		prometheus.MustRegister(gaugeVec)
-		appMetrics.gaugeVecs[name] = gaugeVec
+		appInstanceMetrics.gaugeVecs[name] = gaugeVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -65,9 +65,9 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	counterVec, present := appMetrics.counterVecs[name]
+	counterVec, present := appInstanceMetrics.counterVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -82,7 +82,7 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 		counterVec = *prometheus.NewCounterVec(options, labelNames)
 
 		prometheus.MustRegister(counterVec)
-		appMetrics.counterVecs[name] = counterVec
+		appInstanceMetrics.counterVecs[name] = counterVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -96,9 +96,9 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID, metric.Instance)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	histogramVec, present := appMetrics.histogramVecs[name]
+	histogramVec, present := appInstanceMetrics.histogramVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -113,7 +113,7 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 		histogramVec = *prometheus.NewHistogramVec(options, labelNames)
 
 		prometheus.MustRegister(histogramVec)
-		appMetrics.histogramVecs[name] = histogramVec
+		appInstanceMetrics.histogramVecs[name] = histogramVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -124,17 +124,17 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 	return nil
 }
 
-func (s *PrometheusSender) getOrCreateAppMetrics(guid string, instance string) appMetrics {
+func (s *PrometheusSender) getOrCreateAppInstanceMetrics(guid string, instance string) appInstanceMetrics {
 	guidInstance := fmt.Sprintf("%s:%s", guid, instance)
 
-	m, present := s.appMetrics[guidInstance]
+	m, present := s.appInstanceMetrics[guidInstance]
 	if !present {
-		newM := appMetrics{
+		newM := appInstanceMetrics{
 			counterVecs:   make(map[string]prometheus.CounterVec),
 			gaugeVecs:     make(map[string]prometheus.GaugeVec),
 			histogramVecs: make(map[string]prometheus.HistogramVec),
 		}
-		s.appMetrics[guidInstance] = newM
+		s.appInstanceMetrics[guidInstance] = newM
 		return newM
 	}
 	return m
@@ -184,16 +184,16 @@ func (s PrometheusSender) AppInstanceCreated(guidInstance string) error {
 }
 
 func (s PrometheusSender) AppInstanceDeleted(guidInstance string) error {
-	appMetrics := s.appMetrics[guidInstance]
-	for _, v := range appMetrics.counterVecs {
+	appInstanceMetrics := s.appInstanceMetrics[guidInstance]
+	for _, v := range appInstanceMetrics.counterVecs {
 		v.Reset()
 	}
-	for _, v := range appMetrics.gaugeVecs {
+	for _, v := range appInstanceMetrics.gaugeVecs {
 		v.Reset()
 	}
-	for _, v := range appMetrics.histogramVecs {
+	for _, v := range appInstanceMetrics.histogramVecs {
 		v.Reset()
 	}
-	delete(s.appMetrics, guidInstance)
+	delete(s.appInstanceMetrics, guidInstance)
 	return nil
 }
