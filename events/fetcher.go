@@ -58,6 +58,7 @@ func NewFetcher(
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
 		watchedApps:    make(map[string]chan cfclient.App),
+		watchedServices: make(map[string] chan cfclient.Service),
 	}
 }
 
