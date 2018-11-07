@@ -10,6 +10,8 @@ global:
 
 scrape_configs:
 - job_name: paas-metric-exporter
+  bearer_token: $(cf oauth-token | sed 's/bearer //')
+  scheme: https
   static_configs:
   - targets:
     - 'metric-exporter.leeporte.dev.cloudpipelineapps.digital:443'
