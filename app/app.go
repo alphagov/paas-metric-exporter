@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"fmt"
 	"log"
 	"net/http"
@@ -79,9 +80,11 @@ func NewLocketConfig(addr, caCert, clientCert, clientKey *string) locket.ClientL
 type Application struct {
 	config         *Config
 	processors     map[sonde_events.Envelope_EventType]processors.Processor
+	serviceProcessor map[loggregator_v2.Envelope]processors.ServiceProcessor
 	eventFetcher   events.FetcherProcess
 	senders        []metrics.Sender
 	appEventChan   chan *events.AppEvent
+	serviceEventChan chan *events.ServiceEvent
 	newAppChan     chan string
 	deletedAppChan chan string
 	errorChan      chan error
@@ -106,6 +109,7 @@ func NewApplication(
 		UpdateFrequency: config.CFAppUpdateFrequency,
 	}
 	appEventChan := make(chan *events.AppEvent)
+	serviceEventChan := make(chan *events.ServiceEvent)
 	newAppChan := make(chan string)
 	deletedAppChan := make(chan string)
 	errorChan := make(chan error)
@@ -120,6 +124,7 @@ func NewApplication(
 		senders:        senders,
 		eventFetcher:   eventFetcher,
 		appEventChan:   appEventChan,
+		serviceEventChan:   serviceEventChan,
 		newAppChan:     newAppChan,
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
@@ -215,6 +220,30 @@ func (a *Application) run() {
 			}
 
 			processedMetrics, procErr := processor.Process(appEvent)
+			if procErr != nil {
+				log.Printf("processing metrics failed: %v\n", procErr)
+				continue
+			}
+
+			for _, metric := range processedMetrics {
+				if !a.enabled(metric.Name()) {
+					continue
+				}
+
+				for _, sender := range a.senders {
+					err := metric.Send(sender)
+					if err != nil {
+						log.Printf("sending metrics failed %v\n", err)
+					}
+				}
+			}
+		case serviceEvent := <-a.serviceEventChan:
+			processor, ok := a.serviceProcessor[*serviceEvent.Envelope]
+			if !ok {
+				continue
+			}
+
+			processedMetrics, procErr := processor.ServiceProcess(serviceEvent)
 			if procErr != nil {
 				log.Printf("processing metrics failed: %v\n", procErr)
 				continue
