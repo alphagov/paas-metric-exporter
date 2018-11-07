@@ -329,6 +329,8 @@ func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Ser
 				}
 				// TODO: other event types
 			}
+
+			time.Sleep(60 * time.Second)
 		}
 	}()
 	return serviceChan
