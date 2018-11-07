@@ -1,6 +1,7 @@
 package senders
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/alphagov/paas-metric-exporter/metrics"
@@ -8,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type appMetrics struct {
+type appInstanceMetrics struct {
 	counterVecs   map[string]prometheus.CounterVec
 	gaugeVecs     map[string]prometheus.GaugeVec
 	histogramVecs map[string]prometheus.HistogramVec
@@ -16,7 +17,7 @@ type appMetrics struct {
 
 type PrometheusSender struct {
 	presenter  presenters.SnakeCasePresenter
-	appMetrics map[string]appMetrics
+	appInstanceMetrics map[string]appInstanceMetrics
 }
 
 var _ metrics.Sender = &PrometheusSender{}
@@ -26,16 +27,16 @@ func NewPrometheusSender() *PrometheusSender {
 
 	return &PrometheusSender{
 		presenter,
-		make(map[string]appMetrics),
+		make(map[string]appInstanceMetrics),
 	}
 }
 
 func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	gaugeVec, present := appMetrics.gaugeVecs[name]
+	gaugeVec, present := appInstanceMetrics.gaugeVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -44,12 +45,13 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		gaugeVec = *prometheus.NewGaugeVec(options, labelNames)
 
 		prometheus.MustRegister(gaugeVec)
-		appMetrics.gaugeVecs[name] = gaugeVec
+		appInstanceMetrics.gaugeVecs[name] = gaugeVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -63,9 +65,9 @@ func (s *PrometheusSender) Gauge(metric metrics.GaugeMetric) error {
 func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	counterVec, present := appMetrics.counterVecs[name]
+	counterVec, present := appInstanceMetrics.counterVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -74,12 +76,13 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		counterVec = *prometheus.NewCounterVec(options, labelNames)
 
 		prometheus.MustRegister(counterVec)
-		appMetrics.counterVecs[name] = counterVec
+		appInstanceMetrics.counterVecs[name] = counterVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -93,9 +96,9 @@ func (s *PrometheusSender) Incr(metric metrics.CounterMetric) error {
 func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error {
 	name := s.presenter.Present(metric.Name())
 
-	appMetrics := s.getOrCreateAppMetrics(metric.GUID)
+	appInstanceMetrics := s.getOrCreateAppInstanceMetrics(metric.GUID, metric.Instance)
 
-	histogramVec, present := appMetrics.histogramVecs[name]
+	histogramVec, present := appInstanceMetrics.histogramVecs[name]
 	labelNames := s.buildLabelsFromMetric(metric)
 
 	if !present {
@@ -104,12 +107,13 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 			Help: " ",
 			ConstLabels: prometheus.Labels{
 				"guid": metric.GUID,
+				"instance": metric.Instance,
 			},
 		}
 		histogramVec = *prometheus.NewHistogramVec(options, labelNames)
 
 		prometheus.MustRegister(histogramVec)
-		appMetrics.histogramVecs[name] = histogramVec
+		appInstanceMetrics.histogramVecs[name] = histogramVec
 	}
 
 	labels := s.labels(metric, labelNames)
@@ -120,15 +124,17 @@ func (s *PrometheusSender) PrecisionTiming(metric metrics.PrecisionTimingMetric)
 	return nil
 }
 
-func (s *PrometheusSender) getOrCreateAppMetrics(guid string) appMetrics {
-	m, present := s.appMetrics[guid]
+func (s *PrometheusSender) getOrCreateAppInstanceMetrics(guid string, instance string) appInstanceMetrics {
+	guidInstance := fmt.Sprintf("%s:%s", guid, instance)
+
+	m, present := s.appInstanceMetrics[guidInstance]
 	if !present {
-		newM := appMetrics{
+		newM := appInstanceMetrics{
 			counterVecs:   make(map[string]prometheus.CounterVec),
 			gaugeVecs:     make(map[string]prometheus.GaugeVec),
 			histogramVecs: make(map[string]prometheus.HistogramVec),
 		}
-		s.appMetrics[guid] = newM
+		s.appInstanceMetrics[guidInstance] = newM
 		return newM
 	}
 	return m
@@ -140,7 +146,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 
 	for mk, mv := range metric.GetLabels() {
 		switch mk {
-		case "GUID", "CellId", "Job":
+		case "GUID", "CellId", "Job", "Instance":
 			continue
 		}
 		presented := s.presenter.Present(mk)
@@ -163,7 +169,7 @@ func (s *PrometheusSender) labels(metric metrics.Metric, labelNames []string) pr
 func (s *PrometheusSender) buildLabelsFromMetric(metric metrics.Metric) (labelNames []string) {
 	for k := range metric.GetLabels() {
 		switch k {
-		case "GUID", "CellId", "Job":
+		case "GUID", "CellId", "Job", "Instance":
 			continue
 		}
 		presented := s.presenter.Present(k)
@@ -173,21 +179,21 @@ func (s *PrometheusSender) buildLabelsFromMetric(metric metrics.Metric) (labelNa
 	return labelNames
 }
 
-func (s PrometheusSender) AppCreated(guid string) error {
+func (s PrometheusSender) AppInstanceCreated(guidInstance string) error {
 	return nil
 }
 
-func (s PrometheusSender) AppDeleted(guid string) error {
-	appMetrics := s.appMetrics[guid]
-	for _, v := range appMetrics.counterVecs {
+func (s PrometheusSender) AppInstanceDeleted(guidInstance string) error {
+	appInstanceMetrics := s.appInstanceMetrics[guidInstance]
+	for _, v := range appInstanceMetrics.counterVecs {
 		v.Reset()
 	}
-	for _, v := range appMetrics.gaugeVecs {
+	for _, v := range appInstanceMetrics.gaugeVecs {
 		v.Reset()
 	}
-	for _, v := range appMetrics.histogramVecs {
+	for _, v := range appInstanceMetrics.histogramVecs {
 		v.Reset()
 	}
-	delete(s.appMetrics, guid)
+	delete(s.appInstanceMetrics, guidInstance)
 	return nil
 }

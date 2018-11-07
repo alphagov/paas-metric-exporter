@@ -8,26 +8,26 @@ import (
 )
 
 type FakeSender struct {
-	AppCreatedStub        func(string) error
-	appCreatedMutex       sync.RWMutex
-	appCreatedArgsForCall []struct {
+	AppInstanceCreatedStub        func(string) error
+	appInstanceCreatedMutex       sync.RWMutex
+	appInstanceCreatedArgsForCall []struct {
 		arg1 string
 	}
-	appCreatedReturns struct {
+	appInstanceCreatedReturns struct {
 		result1 error
 	}
-	appCreatedReturnsOnCall map[int]struct {
+	appInstanceCreatedReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AppDeletedStub        func(string) error
-	appDeletedMutex       sync.RWMutex
-	appDeletedArgsForCall []struct {
+	AppInstanceDeletedStub        func(string) error
+	appInstanceDeletedMutex       sync.RWMutex
+	appInstanceDeletedArgsForCall []struct {
 		arg1 string
 	}
-	appDeletedReturns struct {
+	appInstanceDeletedReturns struct {
 		result1 error
 	}
-	appDeletedReturnsOnCall map[int]struct {
+	appInstanceDeletedReturnsOnCall map[int]struct {
 		result1 error
 	}
 	GaugeStub        func(metrics.GaugeMetric) error
@@ -67,122 +67,122 @@ type FakeSender struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeSender) AppCreated(arg1 string) error {
-	fake.appCreatedMutex.Lock()
-	ret, specificReturn := fake.appCreatedReturnsOnCall[len(fake.appCreatedArgsForCall)]
-	fake.appCreatedArgsForCall = append(fake.appCreatedArgsForCall, struct {
+func (fake *FakeSender) AppInstanceCreated(arg1 string) error {
+	fake.appInstanceCreatedMutex.Lock()
+	ret, specificReturn := fake.appInstanceCreatedReturnsOnCall[len(fake.appInstanceCreatedArgsForCall)]
+	fake.appInstanceCreatedArgsForCall = append(fake.appInstanceCreatedArgsForCall, struct {
 		arg1 string
 	}{arg1})
-	fake.recordInvocation("AppCreated", []interface{}{arg1})
-	fake.appCreatedMutex.Unlock()
-	if fake.AppCreatedStub != nil {
-		return fake.AppCreatedStub(arg1)
+	fake.recordInvocation("AppInstanceCreated", []interface{}{arg1})
+	fake.appInstanceCreatedMutex.Unlock()
+	if fake.AppInstanceCreatedStub != nil {
+		return fake.AppInstanceCreatedStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.appCreatedReturns
+	fakeReturns := fake.appInstanceCreatedReturns
 	return fakeReturns.result1
 }
 
-func (fake *FakeSender) AppCreatedCallCount() int {
-	fake.appCreatedMutex.RLock()
-	defer fake.appCreatedMutex.RUnlock()
-	return len(fake.appCreatedArgsForCall)
+func (fake *FakeSender) AppInstanceCreatedCallCount() int {
+	fake.appInstanceCreatedMutex.RLock()
+	defer fake.appInstanceCreatedMutex.RUnlock()
+	return len(fake.appInstanceCreatedArgsForCall)
 }
 
-func (fake *FakeSender) AppCreatedCalls(stub func(string) error) {
-	fake.appCreatedMutex.Lock()
-	defer fake.appCreatedMutex.Unlock()
-	fake.AppCreatedStub = stub
+func (fake *FakeSender) AppInstanceCreatedCalls(stub func(string) error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
+	fake.AppInstanceCreatedStub = stub
 }
 
-func (fake *FakeSender) AppCreatedArgsForCall(i int) string {
-	fake.appCreatedMutex.RLock()
-	defer fake.appCreatedMutex.RUnlock()
-	argsForCall := fake.appCreatedArgsForCall[i]
+func (fake *FakeSender) AppInstanceCreatedArgsForCall(i int) string {
+	fake.appInstanceCreatedMutex.RLock()
+	defer fake.appInstanceCreatedMutex.RUnlock()
+	argsForCall := fake.appInstanceCreatedArgsForCall[i]
 	return argsForCall.arg1
 }
 
-func (fake *FakeSender) AppCreatedReturns(result1 error) {
-	fake.appCreatedMutex.Lock()
-	defer fake.appCreatedMutex.Unlock()
-	fake.AppCreatedStub = nil
-	fake.appCreatedReturns = struct {
+func (fake *FakeSender) AppInstanceCreatedReturns(result1 error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
+	fake.AppInstanceCreatedStub = nil
+	fake.appInstanceCreatedReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakeSender) AppCreatedReturnsOnCall(i int, result1 error) {
-	fake.appCreatedMutex.Lock()
-	defer fake.appCreatedMutex.Unlock()
-	fake.AppCreatedStub = nil
-	if fake.appCreatedReturnsOnCall == nil {
-		fake.appCreatedReturnsOnCall = make(map[int]struct {
+func (fake *FakeSender) AppInstanceCreatedReturnsOnCall(i int, result1 error) {
+	fake.appInstanceCreatedMutex.Lock()
+	defer fake.appInstanceCreatedMutex.Unlock()
+	fake.AppInstanceCreatedStub = nil
+	if fake.appInstanceCreatedReturnsOnCall == nil {
+		fake.appInstanceCreatedReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.appCreatedReturnsOnCall[i] = struct {
+	fake.appInstanceCreatedReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakeSender) AppDeleted(arg1 string) error {
-	fake.appDeletedMutex.Lock()
-	ret, specificReturn := fake.appDeletedReturnsOnCall[len(fake.appDeletedArgsForCall)]
-	fake.appDeletedArgsForCall = append(fake.appDeletedArgsForCall, struct {
+func (fake *FakeSender) AppInstanceDeleted(arg1 string) error {
+	fake.appInstanceDeletedMutex.Lock()
+	ret, specificReturn := fake.appInstanceDeletedReturnsOnCall[len(fake.appInstanceDeletedArgsForCall)]
+	fake.appInstanceDeletedArgsForCall = append(fake.appInstanceDeletedArgsForCall, struct {
 		arg1 string
 	}{arg1})
-	fake.recordInvocation("AppDeleted", []interface{}{arg1})
-	fake.appDeletedMutex.Unlock()
-	if fake.AppDeletedStub != nil {
-		return fake.AppDeletedStub(arg1)
+	fake.recordInvocation("AppInstanceDeleted", []interface{}{arg1})
+	fake.appInstanceDeletedMutex.Unlock()
+	if fake.AppInstanceDeletedStub != nil {
+		return fake.AppInstanceDeletedStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.appDeletedReturns
+	fakeReturns := fake.appInstanceDeletedReturns
 	return fakeReturns.result1
 }
 
-func (fake *FakeSender) AppDeletedCallCount() int {
-	fake.appDeletedMutex.RLock()
-	defer fake.appDeletedMutex.RUnlock()
-	return len(fake.appDeletedArgsForCall)
+func (fake *FakeSender) AppInstanceDeletedCallCount() int {
+	fake.appInstanceDeletedMutex.RLock()
+	defer fake.appInstanceDeletedMutex.RUnlock()
+	return len(fake.appInstanceDeletedArgsForCall)
 }
 
-func (fake *FakeSender) AppDeletedCalls(stub func(string) error) {
-	fake.appDeletedMutex.Lock()
-	defer fake.appDeletedMutex.Unlock()
-	fake.AppDeletedStub = stub
+func (fake *FakeSender) AppInstanceDeletedCalls(stub func(string) error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
+	fake.AppInstanceDeletedStub = stub
 }
 
-func (fake *FakeSender) AppDeletedArgsForCall(i int) string {
-	fake.appDeletedMutex.RLock()
-	defer fake.appDeletedMutex.RUnlock()
-	argsForCall := fake.appDeletedArgsForCall[i]
+func (fake *FakeSender) AppInstanceDeletedArgsForCall(i int) string {
+	fake.appInstanceDeletedMutex.RLock()
+	defer fake.appInstanceDeletedMutex.RUnlock()
+	argsForCall := fake.appInstanceDeletedArgsForCall[i]
 	return argsForCall.arg1
 }
 
-func (fake *FakeSender) AppDeletedReturns(result1 error) {
-	fake.appDeletedMutex.Lock()
-	defer fake.appDeletedMutex.Unlock()
-	fake.AppDeletedStub = nil
-	fake.appDeletedReturns = struct {
+func (fake *FakeSender) AppInstanceDeletedReturns(result1 error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
+	fake.AppInstanceDeletedStub = nil
+	fake.appInstanceDeletedReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakeSender) AppDeletedReturnsOnCall(i int, result1 error) {
-	fake.appDeletedMutex.Lock()
-	defer fake.appDeletedMutex.Unlock()
-	fake.AppDeletedStub = nil
-	if fake.appDeletedReturnsOnCall == nil {
-		fake.appDeletedReturnsOnCall = make(map[int]struct {
+func (fake *FakeSender) AppInstanceDeletedReturnsOnCall(i int, result1 error) {
+	fake.appInstanceDeletedMutex.Lock()
+	defer fake.appInstanceDeletedMutex.Unlock()
+	fake.AppInstanceDeletedStub = nil
+	if fake.appInstanceDeletedReturnsOnCall == nil {
+		fake.appInstanceDeletedReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.appDeletedReturnsOnCall[i] = struct {
+	fake.appInstanceDeletedReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -370,10 +370,10 @@ func (fake *FakeSender) PrecisionTimingReturnsOnCall(i int, result1 error) {
 func (fake *FakeSender) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.appCreatedMutex.RLock()
-	defer fake.appCreatedMutex.RUnlock()
-	fake.appDeletedMutex.RLock()
-	defer fake.appDeletedMutex.RUnlock()
+	fake.appInstanceCreatedMutex.RLock()
+	defer fake.appInstanceCreatedMutex.RUnlock()
+	fake.appInstanceDeletedMutex.RLock()
+	defer fake.appInstanceDeletedMutex.RUnlock()
 	fake.gaugeMutex.RLock()
 	defer fake.gaugeMutex.RUnlock()
 	fake.incrMutex.RLock()

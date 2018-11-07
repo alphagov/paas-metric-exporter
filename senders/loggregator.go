@@ -72,10 +72,10 @@ func (ls *LoggregatorSender) PrecisionTiming(metric metrics.PrecisionTimingMetri
 	return nil
 }
 
-func (ls *LoggregatorSender) AppCreated(guid string) error {
+func (ls *LoggregatorSender) AppInstanceCreated(guidInstance string) error {
 	return nil
 }
 
-func (ls *LoggregatorSender) AppDeleted(guid string) error {
+func (ls *LoggregatorSender) AppInstanceDeleted(guidInstance string) error {
 	return nil
 }

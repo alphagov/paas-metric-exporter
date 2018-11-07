@@ -26,16 +26,16 @@ type TokenErr struct {
 
 var _ = Describe("Fetcher", func() {
 	var (
-		apiServer      *ghttp.Server
-		tcServer       *ghttp.Server
-		tcHandler      mockWebsocketHandler
-		endpoint       cfclient.Endpoint
-		token          oauth2.Token
-		fetcher        *Fetcher
-		appEventChan   chan *AppEvent
-		newAppChan     chan string
-		deletedAppChan chan string
-		errorChan      chan error
+		apiServer              *ghttp.Server
+		tcServer               *ghttp.Server
+		tcHandler              mockWebsocketHandler
+		endpoint               cfclient.Endpoint
+		token                  oauth2.Token
+		fetcher                *Fetcher
+		appEventChan           chan *AppEvent
+		newAppInstanceChan     chan string
+		deletedAppInstanceChan chan string
+		errorChan              chan error
 	)
 
 	BeforeEach(func() {
@@ -91,9 +91,9 @@ var _ = Describe("Fetcher", func() {
 		}
 		appEventChan = make(chan *AppEvent, 10)
 		errorChan = make(chan error, 10)
-		newAppChan = make(chan string, 10)
-		deletedAppChan = make(chan string, 10)
-		fetcher = NewFetcher(config, appEventChan, newAppChan, deletedAppChan, errorChan)
+		newAppInstanceChan = make(chan string, 10)
+		deletedAppInstanceChan = make(chan string, 10)
+		fetcher = NewFetcher(config, appEventChan, newAppInstanceChan, deletedAppInstanceChan, errorChan)
 		fetcher.authenticate()
 	})
 
@@ -102,11 +102,10 @@ var _ = Describe("Fetcher", func() {
 		close(appEventChan)
 		Expect(errorChan).To(BeEmpty())
 		close(errorChan)
-		Expect(newAppChan).To(BeEmpty())
-		close(newAppChan)
-		Expect(deletedAppChan).To(BeEmpty())
-		close(deletedAppChan)
-
+		Expect(newAppInstanceChan).To(BeEmpty())
+		close(newAppInstanceChan)
+		Expect(deletedAppInstanceChan).To(BeEmpty())
+		close(deletedAppInstanceChan)
 		log.SetOutput(os.Stdout)
 	})
 
@@ -123,10 +122,10 @@ var _ = Describe("Fetcher", func() {
 			var appsAfterRename []cfclient.App
 			BeforeEach(func() {
 				appsBeforeRename = []cfclient.App{
-					{Guid: "33333333-3333-3333-3333-333333333333", Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 				appsAfterRename = []cfclient.App{
-					{Guid: "33333333-3333-3333-3333-333333333333", Name: "bar", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "bar", SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 
 				apiServer.AppendHandlers(
@@ -162,7 +161,7 @@ var _ = Describe("Fetcher", func() {
 
 				var eventBeforeRename *AppEvent
 				Eventually(appEventChan).Should(Receive(&eventBeforeRename))
-				Eventually(newAppChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
 				Expect(eventBeforeRename.App.Name).To(Equal("foo"))
 
 				retrieveNewName := func() string {
@@ -174,6 +173,154 @@ var _ = Describe("Fetcher", func() {
 
 				Expect(fetcher.updateApps()).To(Succeed())
 				Eventually(retrieveNewName).Should(Equal("bar"))
+			})
+		})
+
+		Context("app instances are scaled down", func() {
+			var appsBeforeScaleDown []cfclient.App
+			var appsAfterScaleDown []cfclient.App
+			BeforeEach(func() {
+				appsBeforeScaleDown = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 2, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+				appsAfterScaleDown = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeScaleDown)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterScaleDown)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+				)
+			})
+
+			It("updates the number of instances", func() {
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Eventually(appEventChan).Should(Receive())
+			})
+		})
+
+		Context("app instances are scaled up", func() {
+			var appsBeforeScaleUp []cfclient.App
+			var appsAfterScaleUp []cfclient.App
+			BeforeEach(func() {
+				appsBeforeScaleUp = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+				appsAfterScaleUp = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 2, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeScaleUp)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterScaleUp)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+				)
+			})
+
+			It("updates the number of instances", func() {
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Eventually(appEventChan).Should(Receive())
+			})
+		})
+
+		Context("all app instances are deleted", func() {
+			var appsBeforeDelete []cfclient.App
+			var appsAfterDelete []cfclient.App
+			BeforeEach(func() {
+				appsBeforeDelete = []cfclient.App{
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 2, Name: "foo", SpaceURL: "/v2/spaces/" + spaceGuid},
+				}
+				appsAfterDelete = []cfclient.App{}
+
+				apiServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsBeforeDelete)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/apps"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockAppResponse(appsAfterDelete)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/spaces/"+spaceGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockSpaceResource(spaceGuid, orgGuid)),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/v2/organizations/"+orgGuid),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, mockOrgResource(orgGuid)),
+					),
+				)
+			})
+
+			It("deletes all the app's instances", func() {
+				Expect(fetcher.updateApps()).To(Succeed())
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(newAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
+				Expect(fetcher.updateApps()).To(Succeed())
+
+				Eventually(appEventChan).Should(Receive())
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:0")))
+				Eventually(deletedAppInstanceChan).Should(Receive(Equal("33333333-3333-3333-3333-333333333333:1")))
 			})
 		})
 
@@ -199,9 +346,9 @@ var _ = Describe("Fetcher", func() {
 		Context("no watchers and three running apps", func() {
 			BeforeEach(func() {
 				apps = []cfclient.App{
-					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "11111111-1111-1111-1111-111111111111", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "22222222-2222-2222-2222-222222222222", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 
 				afterApps := []cfclient.App{}
@@ -253,7 +400,7 @@ var _ = Describe("Fetcher", func() {
 					}
 					Eventually(inMap).Should(BeTrue())
 					Eventually(appEventChan).Should(Receive())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -264,7 +411,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
-					Eventually(deletedAppChan).Should(Receive())
+					Eventually(deletedAppInstanceChan).Should(Receive())
 				}
 			})
 		})
@@ -274,14 +421,14 @@ var _ = Describe("Fetcher", func() {
 
 			BeforeEach(func() {
 				appsBefore = []cfclient.App{
-					{Guid: "11111111-1111-1111-1111-111111111111", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "22222222-2222-2222-2222-222222222222", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "11111111-1111-1111-1111-111111111111", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "22222222-2222-2222-2222-222222222222", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 				apps = []cfclient.App{
-					{Guid: "33333333-3333-3333-3333-333333333333", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "44444444-4444-4444-4444-444444444444", SpaceURL: "/v2/spaces/" + spaceGuid},
-					{Guid: "55555555-5555-5555-5555-555555555555", SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "44444444-4444-4444-4444-444444444444", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
+					{Guid: "55555555-5555-5555-5555-555555555555", Instances: 1, SpaceURL: "/v2/spaces/" + spaceGuid},
 				}
 
 				apiServer.AppendHandlers(
@@ -348,7 +495,7 @@ var _ = Describe("Fetcher", func() {
 				Expect(fetcher.updateApps()).To(Succeed())
 				for range appsBefore {
 					Eventually(appEventChan).Should(Receive())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 
 				Expect(fetcher.updateApps()).To(Succeed())
@@ -360,7 +507,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeFalse())
-					Eventually(deletedAppChan).Should(Receive())
+					Eventually(deletedAppInstanceChan).Should(Receive())
 				}
 
 				newApps := apps[1:]
@@ -371,7 +518,7 @@ var _ = Describe("Fetcher", func() {
 						return fetcher.isWatched(guid)
 					}
 					Eventually(inMap).Should(BeTrue())
-					Eventually(newAppChan).Should(Receive())
+					Eventually(newAppInstanceChan).Should(Receive())
 				}
 			})
 		})

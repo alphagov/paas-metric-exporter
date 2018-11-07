@@ -51,12 +51,12 @@ func (d DebugSender) PrecisionTiming(metric metrics.PrecisionTimingMetric) error
 	return nil
 }
 
-func (d DebugSender) AppCreated(guid string) error {
-	log.Printf("app %s created\n", guid)
+func (d DebugSender) AppInstanceCreated(guidInstance string) error {
+	log.Printf("app %s created\n", guidInstance)
 	return nil
 }
 
-func (d DebugSender) AppDeleted(guid string) error {
-	log.Printf("app %s deleted\n", guid)
+func (d DebugSender) AppInstanceDeleted(guidInstance string) error {
+	log.Printf("app %s deleted\n", guidInstance)
 	return nil
 }

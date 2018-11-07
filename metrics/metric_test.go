@@ -43,11 +43,11 @@ func (f *FakeStatsdClient) Gauge(metric GaugeMetric) error {
 	return nil
 }
 
-func (f *FakeStatsdClient) AppCreated(guid string) error {
+func (f *FakeStatsdClient) AppInstanceCreated(guidInstance string) error {
 	return nil
 }
 
-func (f *FakeStatsdClient) AppDeleted(guid string) error {
+func (f *FakeStatsdClient) AppInstanceDeleted(guidInstance string) error {
 	return nil
 }
 
