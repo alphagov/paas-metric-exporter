@@ -306,22 +306,18 @@ func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Ser
 			token: authToken,
 		}))
 
-
-		eventTypesMap := make(map[sonde_events.Envelope_EventType]bool, len(m.config.EventTypes))
-		for _, eventType := range m.config.EventTypes {
-			eventTypesMap[eventType] = true
-		}
-
 		m.newServiceChan <- service.Guid
-		log.Printf("Started reading %s events\n", service.Label)
+		log.Printf("Started reading service %s events\n", service.Label)
 		for {
 			ctx := context.Background()
 			envelopes, e := client.Read(ctx, service.Guid, time.Now())
 			if e != nil {
+				log.Printf("Error reading events, %v", e)
 				m.errorChan <- e
 				continue
 			}
 			for _, envelope := range envelopes {
+				log.Printf("Sedning event %v", envelope)
 				stream := ServiceEvent{Envelope: envelope, Service: service}
 				gauge := envelope.GetGauge()
 				if gauge != nil {
