@@ -47,6 +47,7 @@ func NewFetcher(
 	appEventChan chan *AppEvent,
 	logCacheAPI string,
 	newAppChan chan string,
+	serviceEventChan chan *ServiceEvent,
 	deletedAppChan chan string,
 	errorChan chan error,
 ) *Fetcher {
@@ -55,6 +56,7 @@ func NewFetcher(
 		appEventChan:   appEventChan,
 		logCacheAPI: logCacheAPI,
 		newAppChan:     newAppChan,
+		serviceEventChan:  serviceEventChan,
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
 		watchedApps:    make(map[string]chan cfclient.App),
