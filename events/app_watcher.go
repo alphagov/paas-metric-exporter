@@ -55,7 +55,7 @@ func NewAppWatcher(
 		app:                app,
 		appUpdateChan:      appUpdateChan,
 	}
-	appWatcher.scaleFromTo(0, app.Instances)
+	appWatcher.scaleTo(app.Instances)
 	return appWatcher
 }
 
@@ -138,21 +138,22 @@ func (m *AppWatcher) Run() error {
 			}
 
 			if updatedApp.Instances != m.app.Instances {
-				m.scaleFromTo(m.app.Instances, updatedApp.Instances)
+				m.scaleTo(updatedApp.Instances)
 			}
 			m.app = updatedApp
 		}
 	}
 }
 
-func (m *AppWatcher) scaleFromTo(oldInstances int, newInstances int) {
-	// TODO: use current len instead of old instances
-	if oldInstances < newInstances {
-		for i := oldInstances; i < newInstances; i++ {
+func (m *AppWatcher) scaleTo(newInstanceCount int) {
+	currentInstanceCount := len(m.metricsForInstance)
+
+	if currentInstanceCount < newInstanceCount {
+		for i := currentInstanceCount; i < newInstanceCount; i++ {
 			m.metricsForInstance = append(m.metricsForInstance, NewInstanceMetrics(i))
 		}
 	}	else {
-		for i := oldInstances; i > newInstances; i-- {
+		for i := currentInstanceCount; i > newInstanceCount; i-- {
 			m.unregisterInstanceMetrics(i-1)
 		}
 		m.metricsForInstance = m.metricsForInstance[0:len(m.metricsForInstance)-1]
