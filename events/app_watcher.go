@@ -21,6 +21,7 @@ type AppWatcher struct {
 	metricsForInstance []InstanceMetrics
 	app                cfclient.App
 	appUpdateChan      chan cfclient.App
+	registerer         prometheus.Registerer
 	sync.RWMutex       // TODO: what's this?
 }
 
@@ -28,7 +29,7 @@ type InstanceMetrics struct {
 	cpu prometheus.Gauge
 }
 
-func NewInstanceMetrics(instanceIndex int) InstanceMetrics {
+func NewInstanceMetrics(instanceIndex int, registerer prometheus.Registerer) InstanceMetrics {
 	im := InstanceMetrics{
 		cpu: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -40,18 +41,20 @@ func NewInstanceMetrics(instanceIndex int) InstanceMetrics {
 			},
 		),
 	}
-	prometheus.MustRegister(im.cpu)
+	registerer.MustRegister(im.cpu)
 	return im
 }
 
 func NewAppWatcher(
 	config        *cfclient.Config,
 	app           cfclient.App,
+	registerer    prometheus.Registerer,
 ) *AppWatcher {
 	appWatcher := &AppWatcher{
 		metricsForInstance: make([]InstanceMetrics, 0),
 		config:             config,
 		app:                app,
+		registerer:         registerer,
 		appUpdateChan:      make(chan cfclient.App),
 	}
 	appWatcher.scaleTo(app.Instances)
@@ -153,7 +156,7 @@ func (m *AppWatcher) scaleTo(newInstanceCount int) {
 
 	if currentInstanceCount < newInstanceCount {
 		for i := currentInstanceCount; i < newInstanceCount; i++ {
-			m.metricsForInstance = append(m.metricsForInstance, NewInstanceMetrics(i))
+			m.metricsForInstance = append(m.metricsForInstance, NewInstanceMetrics(i, m.registerer))
 		}
 	} else {
 		for i := currentInstanceCount; i > newInstanceCount; i-- {
@@ -164,5 +167,5 @@ func (m *AppWatcher) scaleTo(newInstanceCount int) {
 }
 
 func (m *AppWatcher) unregisterInstanceMetrics(instanceIndex int) {
-	prometheus.Unregister(m.metricsForInstance[instanceIndex].cpu)
+	m.registerer.Unregister(m.metricsForInstance[instanceIndex].cpu)
 }

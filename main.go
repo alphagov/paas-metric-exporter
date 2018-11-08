@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	//"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/cloudfoundry-community/go-cfclient"
 	// sonde_events "github.com/cloudfoundry/sonde-go/events"
 	// quipo_statsd "github.com/quipo/statsd"
-	// "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 	// "os"
@@ -65,6 +66,8 @@ func checkForJonsWayUpdate(client *cfclient.Client, appWatcher *events.AppWatche
 func main() {
 	kingpin.Parse()
 
+	appWatchers := make(map[string]*events.AppWatcher)
+
 	config := &cfclient.Config{
 		ApiAddress:        *apiEndpoint,
 		SkipSslValidation: *skipSSLValidation,
@@ -79,15 +82,24 @@ func main() {
 		log.Fatal(err)
 	}
 
-	jons_way_app, err := client.AppByGuid(JONS_WAY_GUID)
+	apps, err := client.ListAppsByQuery(url.Values{})
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	appWatcher := events.NewAppWatcher(config, jons_way_app)
-
-	go appWatcher.Run()
-	go checkForJonsWayUpdate(client, appWatcher)
+	for _, app := range apps {
+		appWatcher, present := appWatchers[app.Guid]
+		if present {
+			appWatcher.UpdateApp(app)
+		} else {
+			appWatcher := events.NewAppWatcher(config, app, prometheus.WrapRegistererWith(
+				prometheus.Labels{"guid": app.Guid},
+				prometheus.DefaultRegisterer,
+			))
+			appWatchers[app.Guid] = appWatcher
+			go appWatcher.Run()
+		}
+		// spot apps that have been deleted
+	}
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
