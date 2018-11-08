@@ -10,9 +10,6 @@ type Processor interface {
 	Process(event *events.AppEvent) ([]metrics.Metric, error)
 }
 
-type ServiceProcessor interface {
-	ServiceProcess(event *events.ServiceEvent) ([]metrics.Metric, error)
-}
 var _ Processor = &ContainerMetricProcessor{}
 
 var _ Processor = &LogMessageProcessor{}

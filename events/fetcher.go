@@ -294,7 +294,7 @@ func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Ser
 		defer func() {
 			m.Lock()
 			defer m.Unlock()
-			delete(m.watchedServices, service.Guid)
+			delete(m.watchedApps, service.Guid)
 		}()
 
 		authToken, err := m.cfClient.GetToken()

@@ -30,7 +30,6 @@ var _ = Describe("App", func() {
 		sender       *metrics_mocks.FakeSender
 		app          *Application
 		appEventChan chan *events.AppEvent
-		serviceEventChan chan *events.ServiceEvent
 		errorChan    chan error
 		whitelist    []string
 	)
@@ -45,25 +44,20 @@ var _ = Describe("App", func() {
 			sonde_events.Envelope_ContainerMetric: proc1,
 			sonde_events.Envelope_LogMessage:      proc2,
 		}
-		logCacheAPI := "http://localhost"
 		sender = &metrics_mocks.FakeSender{}
 		appEventChan = make(chan *events.AppEvent, 10)
-		serviceEventChan = make(chan *events.ServiceEvent, 10)
 		errorChan = make(chan error)
 		app = NewApplication(
 			&Config{
 				CFAppUpdateFrequency: time.Second,
 				Whitelist:            whitelist,
 			},
-			logCacheAPI,
 			processors,
 			[]metrics.Sender{sender},
 		)
 		app.eventFetcher = fetcher
 		app.appEventChan = appEventChan
-		app.serviceEventChan = serviceEventChan
 		app.errorChan = errorChan
-
 
 		go app.Start(runWithLock)
 	})
