@@ -1,19 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"strings"
-	"time"
+        "net/http"
+	//"strings"
+	// "time"
 
-	"github.com/alphagov/paas-metric-exporter/app"
-	"github.com/alphagov/paas-metric-exporter/metrics"
-	"github.com/alphagov/paas-metric-exporter/processors"
+	// "github.com/alphagov/paas-metric-exporter/app"
+	"github.com/alphagov/paas-metric-exporter/events"
+	// "github.com/alphagov/paas-metric-exporter/metrics"
+	// "github.com/alphagov/paas-metric-exporter/processors"
 	"github.com/alphagov/paas-metric-exporter/senders"
 	"github.com/cloudfoundry-community/go-cfclient"
-	sonde_events "github.com/cloudfoundry/sonde-go/events"
-	quipo_statsd "github.com/quipo/statsd"
+	// sonde_events "github.com/cloudfoundry/sonde-go/events"
+	// quipo_statsd "github.com/quipo/statsd"
+        // "github.com/prometheus/client_golang/prometheus"
+        "github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"os"
+	// "os"
 )
 
 var (
@@ -40,99 +45,30 @@ var (
 	locketClientKey    = kingpin.Flag("locket-client-key", "File path to Locket client key.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_KEY").String()
 )
 
-func normalizePrefix(prefix string) string {
-	prefix = strings.TrimRight(strings.TrimSpace(prefix), ".")
-	if prefix == "" {
-		return prefix
-	}
-	return prefix + "."
-}
-
-func normalizeWhitelist(csv string) []string {
-	list := strings.Split(csv, ",")
-	whitelist := make([]string, len(list))
-
-	for i, val := range list {
-		whitelist[i] = strings.TrimSpace(val)
-	}
-
-	return whitelist
-}
+const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
 
 func main() {
 	kingpin.Parse()
 
-	*statsdPrefix = normalizePrefix(*statsdPrefix)
-
-	log.SetFlags(0)
-
-	config := &app.Config{
-		CFClientConfig: &cfclient.Config{
-			ApiAddress:        *apiEndpoint,
-			SkipSslValidation: *skipSSLValidation,
-			Username:          *username,
-			Password:          *password,
-			ClientID:          *clientID,
-			ClientSecret:      *clientSecret,
-		},
-		CFAppUpdateFrequency: time.Duration(*updateFrequency) * time.Second,
-		Whitelist:            normalizeWhitelist(*metricWhitelist),
-		Template:             *metricTemplate,
-		EnablePrometheus:     *enablePrometheus,
-		PrometheusPort:       *prometheusBindPort,
+	config := &cfclient.Config{
+		ApiAddress:        *apiEndpoint,
+		SkipSslValidation: *skipSSLValidation,
+		Username:          *username,
+		Password:          *password,
+		ClientID:          *clientID,
+		ClientSecret:      *clientSecret,
 	}
 
-	locketConfig := app.NewLocketConfig(locketAddress, locketCACert, locketClientCert, locketClientKey)
-	config.ClientLocketConfig = locketConfig
+	// client, err := cfclient.NewClient(&config)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	processors := map[sonde_events.Envelope_EventType]processors.Processor{
-		sonde_events.Envelope_ContainerMetric: &processors.ContainerMetricProcessor{},
-		sonde_events.Envelope_LogMessage:      &processors.LogMessageProcessor{},
-		sonde_events.Envelope_HttpStartStop:   &processors.HttpStartStopProcessor{},
-	}
+	appWatcher := events.NewAppWatcher(config, JONS_WAY_GUID)
 
-	var metricSenders []metrics.Sender
-	if *debug {
-		debugSender, err := senders.NewDebugSender(*statsdPrefix, config.Template)
-		if err != nil {
-			os.Stderr.WriteString(err.Error() + "\n")
-			os.Exit(1)
-		}
-		metricSenders = append(metricSenders, debugSender)
-	} else {
-		if *enableStatsd {
-			client := quipo_statsd.NewStatsdClient(*statsdEndpoint, *statsdPrefix)
-			client.CreateSocket()
+	go appWatcher.Run()
 
-			statsDSender, err := senders.NewStatsdSender(client, config.Template)
-			if err != nil {
-				os.Stderr.WriteString(err.Error() + "\n")
-				os.Exit(1)
-			}
-
-			metricSenders = append(metricSenders, statsDSender)
-		}
-
-		if *enablePrometheus {
-			metricSenders = append(metricSenders, senders.NewPrometheusSender())
-		}
-
-		if *enableLoggregator {
-			loggregatorSender, err := senders.NewLoggregatorSender(
-				app.DefaultLoggregatorConfig.MetronURL,
-				app.DefaultLoggregatorConfig.CACertPath,
-				app.DefaultLoggregatorConfig.ClientCertPath,
-				app.DefaultLoggregatorConfig.ClientKeyPath,
-			)
-			if err != nil {
-				os.Stderr.WriteString(err.Error() + "\n")
-				os.Exit(1)
-			}
-
-			metricSenders = append(metricSenders, loggregatorSender)
-		}
-	}
-
-	app := app.NewApplication(config, processors, metricSenders)
-	app.Start(*enableLocking)
+	http.Handle("/metrics", promhttp.Handler())
+        log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
 }
+
