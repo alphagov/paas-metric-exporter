@@ -319,9 +319,10 @@ func (m *Fetcher) startServiceStream(service cfclient.ServiceInstance) chan cfcl
 		m.newServiceChan <- service.Guid
 		log.Printf("Started reading service %s events\n", service.Guid)
 
+		duration := 60 * time.Second
 		for {
 			ctx := context.Background()
-			envelopes, e := client.Read(ctx, service.Guid, time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC))
+			envelopes, e := client.Read(ctx, service.Guid, time.Now().Add(0 - duration))
 			if e != nil {
 				log.Printf("Error reading events, %v", e)
 				m.errorChan <- e
@@ -339,7 +340,7 @@ func (m *Fetcher) startServiceStream(service cfclient.ServiceInstance) chan cfcl
 				// TODO: other event types
 			}
 
-			time.Sleep(60 * time.Second)
+			time.Sleep(duration)
 		}
 	}()
 	return serviceChan

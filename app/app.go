@@ -1,6 +1,7 @@
 package app
 
 import (
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"fmt"
 	"log"
 	"net/http"
@@ -262,13 +263,26 @@ func (a *Application) run() {
 			}
 		case serviceEvent := <- a.serviceEventChan:
 			log.Printf("TADA! Got event %v on the serviceEventChan", serviceEvent)
+			log.Printf("Got metrics %v", serviceEvent.Envelope.GetGauge().Metrics)
+			var metric *loggregator_v2.GaugeValue
+			var metricName string
+			for key, theMetric := range serviceEvent.Envelope.GetGauge().Metrics {
+				metricName = key
+				metric = theMetric
+			}
 			for _, sender := range a.senders {
 				err := sender.Gauge(metrics.GaugeMetric{
 					App: serviceEvent.Service.Name,
 					Space: serviceEvent.Service.SpaceGuid,
 					GUID: serviceEvent.Service.Guid,
-					CellId: nil,
-					Metric: serviceEvent.Envelope.GetGauge().Metrics
+					CellId: "TODO",
+					Metric: metricName,
+					Instance: "TODO",
+					Job: "TODO",
+					Metadata: map[string]string{},
+					Organisation: "TODO",
+					Unit: metric.Unit,
+					Value: int64(metric.Value),
 				})
 				if err != nil {
 					log.Printf("registering service failed %v\n", err)

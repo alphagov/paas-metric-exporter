@@ -60,3 +60,7 @@ func (d DebugSender) AppDeleted(guid string) error {
 	log.Printf("app %s deleted\n", guid)
 	return nil
 }
+
+func (d DebugSender) ServiceCreated(guid string) error {
+	return nil
+}
