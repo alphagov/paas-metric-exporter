@@ -38,7 +38,7 @@ type Fetcher struct {
 	deletedAppChan chan string
 	errorChan      chan error
 	watchedApps    map[string]chan cfclient.App
-	watchedServices map [string] chan cfclient.Service
+	watchedServices map [string] chan cfclient.ServiceInstance
 	sync.RWMutex
 }
 
@@ -47,6 +47,7 @@ func NewFetcher(
 	appEventChan chan *AppEvent,
 	logCacheAPI string,
 	newAppChan chan string,
+	newServiceChan chan string,
 	serviceEventChan chan *ServiceEvent,
 	deletedAppChan chan string,
 	errorChan chan error,
@@ -56,11 +57,12 @@ func NewFetcher(
 		appEventChan:   appEventChan,
 		logCacheAPI: logCacheAPI,
 		newAppChan:     newAppChan,
+		newServiceChan: newServiceChan,
 		serviceEventChan:  serviceEventChan,
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
 		watchedApps:    make(map[string]chan cfclient.App),
-		watchedServices: make(map[string] chan cfclient.Service),
+		watchedServices: make(map[string] chan cfclient.ServiceInstance),
 	}
 }
 
@@ -248,9 +250,9 @@ func updateAppSpaceData(app *cfclient.App) error {
 }
 
 
-func (m *Fetcher) getServices() ([]cfclient.Service, error) {
+func (m *Fetcher) getServices() ([]cfclient.ServiceInstance, error) {
 	q := url.Values{}
-	services, err := m.cfClient.ListServicesByQuery(q)
+	services, err := m.cfClient.ListServiceInstancesByQuery(q)
 	if err != nil {
 		return nil, err
 	}
@@ -263,14 +265,18 @@ func (m *Fetcher) updateServices() error {
 		return err
 	}
 
+	log.Printf("Found %d services", len(services))
+
 	running := map[string]bool{}
 	for _, service := range services {
 		running[service.Guid] = true
 		if serviceChan, ok := m.watchedServices[service.Guid]; ok {
 			serviceChan <- service
+			log.Printf(" %s is a watched services", service.Guid )
 		} else {
 			serviceChan = m.startServiceStream(service)
 			m.watchedServices[service.Guid] = serviceChan
+			log.Printf(" %s is not a watched services", service.Guid )
 		}
 	}
 
@@ -289,10 +295,12 @@ func (mC *authorizationHeaderSendingHTTPClient) Do(req *http.Request) (*http.Res
 	return c.Do(req)
 }
 
-func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Service {
-	serviceChan := make(chan cfclient.Service)
+func (m *Fetcher) startServiceStream(service cfclient.ServiceInstance) chan cfclient.ServiceInstance {
+	serviceChan := make(chan cfclient.ServiceInstance)
+	log.Println("starting streaming function")
 	go func() {
 		// TODO: go to log cache, as per code below
+		log.Printf(" %s is now being streamed", service.Guid )
 		defer func() {
 			m.Lock()
 			defer m.Unlock()
@@ -307,22 +315,25 @@ func (m *Fetcher) startServiceStream(service cfclient.Service) chan cfclient.Ser
 		client := logcache.NewClient(m.logCacheAPI, logcache.WithHTTPClient(&authorizationHeaderSendingHTTPClient{
 			token: authToken,
 		}))
-
+		log.Printf(" %s client initialised", service.Guid )
 		m.newServiceChan <- service.Guid
-		log.Printf("Started reading service %s events\n", service.Label)
+		log.Printf("Started reading service %s events\n", service.Guid)
+
 		for {
 			ctx := context.Background()
-			envelopes, e := client.Read(ctx, service.Guid, time.Now())
+			envelopes, e := client.Read(ctx, service.Guid, time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC))
 			if e != nil {
 				log.Printf("Error reading events, %v", e)
 				m.errorChan <- e
 				continue
 			}
+			log.Printf("client.Read succeeded, found %d envelopes for GUID %s", len(envelopes), service.Guid)
 			for _, envelope := range envelopes {
-				log.Printf("Sedning event %v", envelope)
+				log.Printf("Sending event %v", envelope)
 				stream := ServiceEvent{Envelope: envelope, Service: service}
 				gauge := envelope.GetGauge()
 				if gauge != nil {
+					log.Printf("Got gauge for %s, sending it to serviceEventChan", service.Guid)
 					m.serviceEventChan <- &stream
 				}
 				// TODO: other event types

@@ -13,5 +13,5 @@ type AppEvent struct {
 
 type ServiceEvent struct {
 	Envelope *loggregator_v2.Envelope
-	Service  cfclient.Service
+	Service  cfclient.ServiceInstance
 }

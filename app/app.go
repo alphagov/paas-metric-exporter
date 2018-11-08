@@ -82,8 +82,10 @@ type Application struct {
 	eventFetcher   events.FetcherProcess
 	senders        []metrics.Sender
 	appEventChan   chan *events.AppEvent
+	serviceEventChan chan *events.ServiceEvent
 	newAppChan     chan string
 	deletedAppChan chan string
+	newServiceChan  chan string
 	errorChan      chan error
 	exitChan       chan bool
 	logger         lager.Logger
@@ -106,10 +108,12 @@ func NewApplication(
 		UpdateFrequency: config.CFAppUpdateFrequency,
 	}
 	appEventChan := make(chan *events.AppEvent)
+	serviceEventChan := make(chan *events.ServiceEvent)
 	newAppChan := make(chan string)
+	newServiceChan := make(chan string)
 	deletedAppChan := make(chan string)
 	errorChan := make(chan error)
-	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, logCacheAPI, newAppChan, deletedAppChan, errorChan)
+	eventFetcher := events.NewFetcher(fetcherConfig, appEventChan, logCacheAPI, newAppChan, newServiceChan, serviceEventChan, deletedAppChan, errorChan)
 
 	logger := lager.NewLogger("metric-exporter")
 	logger.RegisterSink(lager.NewWriterSink(os.Stdout, lager.DEBUG))
@@ -120,7 +124,9 @@ func NewApplication(
 		senders:        senders,
 		eventFetcher:   eventFetcher,
 		appEventChan:   appEventChan,
+		serviceEventChan: serviceEventChan,
 		newAppChan:     newAppChan,
+		newServiceChan: newServiceChan,
 		deletedAppChan: deletedAppChan,
 		errorChan:      errorChan,
 		exitChan:       make(chan bool),
@@ -246,6 +252,16 @@ func (a *Application) run() {
 					log.Printf("unregistering app failed %v\n", err)
 				}
 			}
+		case newService := <-a.newServiceChan:
+			log.Printf("%s is on the chan!!!", newService)
+			//for _, sender := range a.senders {
+			//	err := sender.ServiceCreated(newService)
+			//	if err != nil {
+			//		log.Printf("registering app failed %v\n", err)
+			//	}
+			//}
+		case serviceEvent := <- a.serviceEventChan:
+			log.Printf("TADA! Got event %v on the serviceEventChan", serviceEvent)
 		case err := <-a.errorChan:
 			log.Printf("fetching events failed: %v\n", err)
 		case <-a.exitChan:
