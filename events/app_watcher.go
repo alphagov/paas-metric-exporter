@@ -19,7 +19,7 @@ type AppWatcher struct {
 	config             *cfclient.Config
 	cfClient           *cfclient.Client
 	metricsForInstance []InstanceMetrics
-  app                cfclient.App
+	app                cfclient.App
 	appUpdateChan      chan cfclient.App
 	sync.RWMutex       // TODO: what's this?
 }
@@ -47,13 +47,12 @@ func NewInstanceMetrics(instanceIndex int) InstanceMetrics {
 func NewAppWatcher(
 	config        *cfclient.Config,
 	app           cfclient.App,
-	appUpdateChan chan cfclient.App,
 ) *AppWatcher {
 	appWatcher := &AppWatcher{
 		metricsForInstance: make([]InstanceMetrics, 0),
 		config:             config,
 		app:                app,
-		appUpdateChan:      appUpdateChan,
+		appUpdateChan:      make(chan cfclient.App),
 	}
 	appWatcher.scaleTo(app.Instances)
 	return appWatcher
@@ -116,7 +115,7 @@ func (m *AppWatcher) Run() error {
 				index := metric.GetInstanceIndex()
 				if int(index) < len(m.metricsForInstance) {
 					instance := m.metricsForInstance[index]
-				  instance.cpu.Set(metric.GetCpuPercentage())
+					instance.cpu.Set(metric.GetCpuPercentage())
 				}
 			}
 		case err, ok := <-errs:
@@ -145,6 +144,10 @@ func (m *AppWatcher) Run() error {
 	}
 }
 
+func (m *AppWatcher) UpdateApp(app cfclient.App) {
+	m.appUpdateChan <- app
+}
+
 func (m *AppWatcher) scaleTo(newInstanceCount int) {
 	currentInstanceCount := len(m.metricsForInstance)
 
@@ -152,7 +155,7 @@ func (m *AppWatcher) scaleTo(newInstanceCount int) {
 		for i := currentInstanceCount; i < newInstanceCount; i++ {
 			m.metricsForInstance = append(m.metricsForInstance, NewInstanceMetrics(i))
 		}
-	}	else {
+	} else {
 		for i := currentInstanceCount; i > newInstanceCount; i-- {
 			m.unregisterInstanceMetrics(i-1)
 		}

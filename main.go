@@ -47,7 +47,7 @@ var (
 
 const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
 
-func checkForJonsWayUpdate(client *cfclient.Client, updatedAppChannel chan cfclient.App) {
+func checkForJonsWayUpdate(client *cfclient.Client, appWatcher *events.AppWatcher) {
 	for {
 		jons_way_app, err := client.AppByGuid(JONS_WAY_GUID)
 		if err != nil {
@@ -56,7 +56,7 @@ func checkForJonsWayUpdate(client *cfclient.Client, updatedAppChannel chan cfcli
 
 		log.Printf("%+v", jons_way_app)
 
-		updatedAppChannel <- jons_way_app
+		appWatcher.UpdateApp(jons_way_app)
 
 		time.Sleep(time.Duration(*updateFrequency) * time.Second)
 	}
@@ -84,12 +84,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	appChan := make(chan cfclient.App)
-
-	appWatcher := events.NewAppWatcher(config, jons_way_app, appChan)
+	appWatcher := events.NewAppWatcher(config, jons_way_app)
 
 	go appWatcher.Run()
-	go checkForJonsWayUpdate(client, appChan)
+	go checkForJonsWayUpdate(client, appWatcher)
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
