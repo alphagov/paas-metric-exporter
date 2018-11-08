@@ -299,7 +299,6 @@ func (m *Fetcher) startServiceStream(service cfclient.ServiceInstance) chan cfcl
 	serviceChan := make(chan cfclient.ServiceInstance)
 	log.Println("starting streaming function")
 	go func() {
-		// TODO: go to log cache, as per code below
 		log.Printf(" %s is now being streamed", service.Guid )
 		defer func() {
 			m.Lock()
