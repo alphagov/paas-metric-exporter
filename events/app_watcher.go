@@ -3,7 +3,7 @@ package events
 import (
 	"crypto/tls"
 	"sync"
-
+	"fmt"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
@@ -19,7 +19,7 @@ type AppWatcher struct {
 	config             *cfclient.Config
 	cfClient           *cfclient.Client
 	metricsForInstance []InstanceMetrics
-	appGuid            string
+  app                cfclient.App
 	sync.RWMutex       // TODO: what's this?
 }
 
@@ -29,12 +29,12 @@ type InstanceMetrics struct {
 
 func NewAppWatcher(
 	config *cfclient.Config,
-	appGuid string,
+	app cfclient.App,
 ) *AppWatcher {
 	return &AppWatcher{
 		metricsForInstance: make([]InstanceMetrics, 2),
 		config:             config,
-		appGuid:            appGuid,
+		app:                app,
 	}
 }
 
@@ -78,35 +78,23 @@ func (m *AppWatcher) Run() error {
 		return err
 	}
 
-	m.metricsForInstance[0].cpu = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "cpu",
-			Help: " ",
-			ConstLabels: prometheus.Labels{
-				"instance": "0",
+	instanceNumber := m.app.Instances
+
+	for i:=0; i<instanceNumber; i++ {
+		m.metricsForInstance[i].cpu = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "cpu",
+				Help: " ",
+				ConstLabels: prometheus.Labels{
+					"instance": fmt.Sprintf("%d", i),
+				},
 			},
-		},
-	)
+		)
 
-	m.metricsForInstance[1].cpu = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "cpu",
-			Help: " ",
-			ConstLabels: prometheus.Labels{
-				"instance": "1",
-			},
-		},
-	)
+		prometheus.MustRegister(m.metricsForInstance[i].cpu)
+	}
 
-	prometheus.MustRegister(m.metricsForInstance[0].cpu)
-	prometheus.MustRegister(m.metricsForInstance[1].cpu)
-
-	msgs, errs := conn.Stream(m.appGuid, authToken)
-
-	// FIXME assume there's one instance
-	// for i := 0; i < app.Instances; i++ {
-	// 	// m.instances[i] = NewInstanceMetrics()
-	// }
+	msgs, errs := conn.Stream(m.app.Guid, authToken)
 
 	// log.Printf("Started reading %s events\n", app.Name)
 	for {
@@ -121,6 +109,7 @@ func (m *AppWatcher) Run() error {
 			case sonde_events.Envelope_ContainerMetric:
 				metric := message.GetContainerMetric()
 				instance := m.metricsForInstance[metric.GetInstanceIndex()]
+				// TODO: case where metrics recieved before cf tells us a new instance has been created
 				instance.cpu.Set(metric.GetCpuPercentage())
 			}
 		case err, ok := <-errs:

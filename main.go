@@ -59,12 +59,17 @@ func main() {
 		ClientSecret:      *clientSecret,
 	}
 
-	// client, err := cfclient.NewClient(&config)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	client, err := cfclient.NewClient(config)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	appWatcher := events.NewAppWatcher(config, JONS_WAY_GUID)
+	jons_way_app, err := client.AppByGuid(JONS_WAY_GUID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	appWatcher := events.NewAppWatcher(config, jons_way_app)
 
 	go appWatcher.Run()
 
