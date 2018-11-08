@@ -254,14 +254,26 @@ func (a *Application) run() {
 			}
 		case newService := <-a.newServiceChan:
 			log.Printf("%s is on the chan!!!", newService)
-			//for _, sender := range a.senders {
-			//	err := sender.ServiceCreated(newService)
-			//	if err != nil {
-			//		log.Printf("registering app failed %v\n", err)
-			//	}
-			//}
+			for _, sender := range a.senders {
+				err := sender.ServiceCreated(newService)
+				if err != nil {
+					log.Printf("registering service failed %v\n", err)
+				}
+			}
 		case serviceEvent := <- a.serviceEventChan:
 			log.Printf("TADA! Got event %v on the serviceEventChan", serviceEvent)
+			for _, sender := range a.senders {
+				err := sender.Gauge(metrics.GaugeMetric{
+					App: serviceEvent.Service.Name,
+					Space: serviceEvent.Service.SpaceGuid,
+					GUID: serviceEvent.Service.Guid,
+					CellId: nil,
+					Metric: serviceEvent.Envelope.GetGauge().Metrics
+				})
+				if err != nil {
+					log.Printf("registering service failed %v\n", err)
+				}
+			}
 		case err := <-a.errorChan:
 			log.Printf("fetching events failed: %v\n", err)
 		case <-a.exitChan:

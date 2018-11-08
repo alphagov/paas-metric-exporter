@@ -191,3 +191,8 @@ func (s PrometheusSender) AppDeleted(guid string) error {
 	delete(s.appMetrics, guid)
 	return nil
 }
+
+func (s PrometheusSender) ServiceCreated(guid string) error {
+	return nil
+}
+

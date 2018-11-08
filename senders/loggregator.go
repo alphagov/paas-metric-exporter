@@ -79,3 +79,7 @@ func (ls *LoggregatorSender) AppCreated(guid string) error {
 func (ls *LoggregatorSender) AppDeleted(guid string) error {
 	return nil
 }
+
+func (ls *LoggregatorSender) ServiceCreated(guid string) error {
+	return nil
+}

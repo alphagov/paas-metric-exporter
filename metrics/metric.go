@@ -15,6 +15,7 @@ type Sender interface {
 	PrecisionTiming(metric PrecisionTimingMetric) error
 	AppCreated(guid string) error
 	AppDeleted(guid string) error
+	ServiceCreated(guid string) error
 }
 
 //go:generate counterfeiter -o mocks/metric.go . Metric
