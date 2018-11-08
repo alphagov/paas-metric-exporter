@@ -1,3 +1,3 @@
 bin/*
-paas-cf-apps-statsd
+paas-metric-exporter
 .idea

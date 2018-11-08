@@ -1,6 +1,6 @@
 ---
 applications:
-- name: metric-exporter
+- name: jon-test-tools-metric-exporter
   memory: 100M
   instances: 1
   buildpacks:

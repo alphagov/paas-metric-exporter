@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-        "net/http"
+	"net/http"
 	//"strings"
 	// "time"
 
@@ -15,8 +15,8 @@ import (
 	"github.com/cloudfoundry-community/go-cfclient"
 	// sonde_events "github.com/cloudfoundry/sonde-go/events"
 	// quipo_statsd "github.com/quipo/statsd"
-        // "github.com/prometheus/client_golang/prometheus"
-        "github.com/prometheus/client_golang/prometheus/promhttp"
+	// "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 	// "os"
 )
@@ -69,6 +69,5 @@ func main() {
 	go appWatcher.Run()
 
 	http.Handle("/metrics", promhttp.Handler())
-        log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
 }
-

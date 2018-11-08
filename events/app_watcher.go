@@ -2,17 +2,12 @@ package events
 
 import (
 	"crypto/tls"
-	// "fmt"
-	// "log"
-	// "net/url"
-	// "strings"
 	"sync"
-	// "time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 //go:generate counterfeiter -o mocks/appWatcher_process.go . AppWatcherProcess
@@ -21,10 +16,15 @@ type AppWatcherProcess interface {
 }
 
 type AppWatcher struct {
-	config          *cfclient.Config
-	cfClient        *cfclient.Client
-	appGuid         string
-	sync.RWMutex // TODO: what's this?
+	config             *cfclient.Config
+	cfClient           *cfclient.Client
+	metricsForInstance []InstanceMetrics
+	appGuid            string
+	sync.RWMutex       // TODO: what's this?
+}
+
+type InstanceMetrics struct {
+	cpu prometheus.Gauge
 }
 
 func NewAppWatcher(
@@ -32,8 +32,9 @@ func NewAppWatcher(
 	appGuid string,
 ) *AppWatcher {
 	return &AppWatcher{
-		config: config,
-		appGuid: appGuid,
+		metricsForInstance: make([]InstanceMetrics, 2),
+		config:             config,
+		appGuid:            appGuid,
 	}
 }
 
@@ -63,7 +64,6 @@ func (m *AppWatcher) authenticate() (err error) {
 	return nil
 }
 
-
 func (m *AppWatcher) Run() error {
 	err := m.authenticate()
 	if err != nil {
@@ -78,8 +78,28 @@ func (m *AppWatcher) Run() error {
 		return err
 	}
 
-	cpuGauge := prometheus.NewGauge(prometheus.GaugeOpts{Name: "cpu", Help: " "})
-	prometheus.MustRegister(cpuGauge)
+	m.metricsForInstance[0].cpu = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "cpu",
+			Help: " ",
+			ConstLabels: prometheus.Labels{
+				"instance": "0",
+			},
+		},
+	)
+
+	m.metricsForInstance[1].cpu = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "cpu",
+			Help: " ",
+			ConstLabels: prometheus.Labels{
+				"instance": "1",
+			},
+		},
+	)
+
+	prometheus.MustRegister(m.metricsForInstance[0].cpu)
+	prometheus.MustRegister(m.metricsForInstance[1].cpu)
 
 	msgs, errs := conn.Stream(m.appGuid, authToken)
 
@@ -100,7 +120,8 @@ func (m *AppWatcher) Run() error {
 			switch message.GetEventType() {
 			case sonde_events.Envelope_ContainerMetric:
 				metric := message.GetContainerMetric()
-				cpuGauge.Set(metric.GetCpuPercentage())
+				instance := m.metricsForInstance[metric.GetInstanceIndex()]
+				instance.cpu.Set(metric.GetCpuPercentage())
 			}
 		case err, ok := <-errs:
 			if !ok {
@@ -111,23 +132,23 @@ func (m *AppWatcher) Run() error {
 				continue
 			}
 			// m.errorChan <- err
-		// case updatedApp, ok := <-appChan:
-		// 	if !ok {
-		// 		appChan = nil
-		// 		conn.Close()
-		// 		continue
-		// 	}
+			// case updatedApp, ok := <-appChan:
+			// 	if !ok {
+			// 		appChan = nil
+			// 		conn.Close()
+			// 		continue
+			// 	}
 
-		// 	if updatedApp.Instances > app.Instances {
-		// 		for i := app.Instances; i < updatedApp.Instances; i++ {
-		// 			m.newAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
-		// 		}
-		// 	} else if updatedApp.Instances < app.Instances {
-		// 		for i := updatedApp.Instances; i < app.Instances; i++ {
-		// 			m.deletedAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
-		// 		}
-		// 	}
-		// 	app = updatedApp
+			// 	if updatedApp.Instances > app.Instances {
+			// 		for i := app.Instances; i < updatedApp.Instances; i++ {
+			// 			m.newAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+			// 		}
+			// 	} else if updatedApp.Instances < app.Instances {
+			// 		for i := updatedApp.Instances; i < app.Instances; i++ {
+			// 			m.deletedAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
+			// 		}
+			// 	}
+			// 	app = updatedApp
 		}
 	}
 }
