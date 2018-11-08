@@ -20,6 +20,7 @@ type AppWatcher struct {
 	cfClient           *cfclient.Client
 	metricsForInstance []InstanceMetrics
   app                cfclient.App
+	appUpdateChan      chan cfclient.App
 	sync.RWMutex       // TODO: what's this?
 }
 
@@ -27,15 +28,35 @@ type InstanceMetrics struct {
 	cpu prometheus.Gauge
 }
 
+func NewInstanceMetrics(instanceIndex int) InstanceMetrics {
+	im := InstanceMetrics{
+		cpu: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "cpu",
+				Help: " ",
+				ConstLabels: prometheus.Labels{
+					"instance": fmt.Sprintf("%d", instanceIndex),
+				},
+			},
+		),
+	}
+	prometheus.MustRegister(im.cpu)
+	return im
+}
+
 func NewAppWatcher(
-	config *cfclient.Config,
-	app cfclient.App,
+	config        *cfclient.Config,
+	app           cfclient.App,
+	appUpdateChan chan cfclient.App,
 ) *AppWatcher {
-	return &AppWatcher{
-		metricsForInstance: make([]InstanceMetrics, 2),
+	appWatcher := &AppWatcher{
+		metricsForInstance: make([]InstanceMetrics, 0),
 		config:             config,
 		app:                app,
+		appUpdateChan:      appUpdateChan,
 	}
+	appWatcher.scaleFromTo(0, app.Instances)
+	return appWatcher
 }
 
 // RefreshAuthToken satisfies the `consumer.TokenRefresher` interface.
@@ -78,22 +99,6 @@ func (m *AppWatcher) Run() error {
 		return err
 	}
 
-	instanceNumber := m.app.Instances
-
-	for i:=0; i<instanceNumber; i++ {
-		m.metricsForInstance[i].cpu = prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Name: "cpu",
-				Help: " ",
-				ConstLabels: prometheus.Labels{
-					"instance": fmt.Sprintf("%d", i),
-				},
-			},
-		)
-
-		prometheus.MustRegister(m.metricsForInstance[i].cpu)
-	}
-
 	msgs, errs := conn.Stream(m.app.Guid, authToken)
 
 	// log.Printf("Started reading %s events\n", app.Name)
@@ -108,9 +113,11 @@ func (m *AppWatcher) Run() error {
 			switch message.GetEventType() {
 			case sonde_events.Envelope_ContainerMetric:
 				metric := message.GetContainerMetric()
-				instance := m.metricsForInstance[metric.GetInstanceIndex()]
-				// TODO: case where metrics recieved before cf tells us a new instance has been created
-				instance.cpu.Set(metric.GetCpuPercentage())
+				index := metric.GetInstanceIndex()
+				if int(index) < len(m.metricsForInstance) {
+					instance := m.metricsForInstance[index]
+				  instance.cpu.Set(metric.GetCpuPercentage())
+				}
 			}
 		case err, ok := <-errs:
 			if !ok {
@@ -120,24 +127,38 @@ func (m *AppWatcher) Run() error {
 			if err == nil {
 				continue
 			}
+			// TODO: do something with errors
+			break
 			// m.errorChan <- err
-			// case updatedApp, ok := <-appChan:
-			// 	if !ok {
-			// 		appChan = nil
-			// 		conn.Close()
-			// 		continue
-			// 	}
+		case updatedApp, ok := <-m.appUpdateChan:
+			if !ok {
+				m.appUpdateChan = nil
+				conn.Close()
+				break
+			}
 
-			// 	if updatedApp.Instances > app.Instances {
-			// 		for i := app.Instances; i < updatedApp.Instances; i++ {
-			// 			m.newAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
-			// 		}
-			// 	} else if updatedApp.Instances < app.Instances {
-			// 		for i := updatedApp.Instances; i < app.Instances; i++ {
-			// 			m.deletedAppInstanceChan <- fmt.Sprintf("%s:%d", app.Guid, i)
-			// 		}
-			// 	}
-			// 	app = updatedApp
+			if updatedApp.Instances != m.app.Instances {
+				m.scaleFromTo(m.app.Instances, updatedApp.Instances)
+			}
+			m.app = updatedApp
 		}
 	}
+}
+
+func (m *AppWatcher) scaleFromTo(oldInstances int, newInstances int) {
+	// TODO: use current len instead of old instances
+	if oldInstances < newInstances {
+		for i := oldInstances; i < newInstances; i++ {
+			m.metricsForInstance = append(m.metricsForInstance, NewInstanceMetrics(i))
+		}
+	}	else {
+		for i := oldInstances; i > newInstances; i-- {
+			m.unregisterInstanceMetrics(i-1)
+		}
+		m.metricsForInstance = m.metricsForInstance[0:len(m.metricsForInstance)-1]
+	}
+}
+
+func (m *AppWatcher) unregisterInstanceMetrics(instanceIndex int) {
+	prometheus.Unregister(m.metricsForInstance[instanceIndex].cpu)
 }

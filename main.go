@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	//"strings"
-	// "time"
+	"time"
 
 	// "github.com/alphagov/paas-metric-exporter/app"
 	"github.com/alphagov/paas-metric-exporter/events"
@@ -47,6 +47,21 @@ var (
 
 const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
 
+func checkForJonsWayUpdate(client *cfclient.Client, updatedAppChannel chan cfclient.App) {
+	for {
+		jons_way_app, err := client.AppByGuid(JONS_WAY_GUID)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Printf("%+v", jons_way_app)
+
+		updatedAppChannel <- jons_way_app
+
+		time.Sleep(time.Duration(*updateFrequency) * time.Second)
+	}
+}
+
 func main() {
 	kingpin.Parse()
 
@@ -69,9 +84,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	appWatcher := events.NewAppWatcher(config, jons_way_app)
+	appChan := make(chan cfclient.App)
+
+	appWatcher := events.NewAppWatcher(config, jons_way_app, appChan)
 
 	go appWatcher.Run()
+	go checkForJonsWayUpdate(client, appChan)
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
