@@ -2,7 +2,6 @@ package events
 
 import (
 	"crypto/tls"
-	"sync"
 	"fmt"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
@@ -22,7 +21,6 @@ type AppWatcher struct {
 	app                cfclient.App
 	appUpdateChan      chan cfclient.App
 	registerer         prometheus.Registerer
-	sync.RWMutex       // TODO: what's this?
 }
 
 type InstanceMetrics struct {
