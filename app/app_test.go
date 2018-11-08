@@ -44,6 +44,7 @@ var _ = Describe("App", func() {
 			sonde_events.Envelope_ContainerMetric: proc1,
 			sonde_events.Envelope_LogMessage:      proc2,
 		}
+		logcacheapi := "12346"
 		sender = &metrics_mocks.FakeSender{}
 		appEventChan = make(chan *events.AppEvent, 10)
 		errorChan = make(chan error)
@@ -52,6 +53,7 @@ var _ = Describe("App", func() {
 				CFAppUpdateFrequency: time.Second,
 				Whitelist:            whitelist,
 			},
+			logcacheapi,
 			processors,
 			[]metrics.Sender{sender},
 		)
