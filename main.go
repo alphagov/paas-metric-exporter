@@ -48,41 +48,10 @@ var (
 
 const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
 
-func checkForJonsWayUpdate(client *cfclient.Client, appWatcher *events.AppWatcher) {
-	for {
-		jons_way_app, err := client.AppByGuid(JONS_WAY_GUID)
-		if err != nil {
-			log.Fatal(err)
-		}
+var appWatchers = make(map[string]*events.AppWatcher)
 
-		log.Printf("%+v", jons_way_app)
-
-		appWatcher.UpdateApp(jons_way_app)
-
-		time.Sleep(time.Duration(*updateFrequency) * time.Second)
-	}
-}
-
-func main() {
-	kingpin.Parse()
-
-	appWatchers := make(map[string]*events.AppWatcher)
-
-	config := &cfclient.Config{
-		ApiAddress:        *apiEndpoint,
-		SkipSslValidation: *skipSSLValidation,
-		Username:          *username,
-		Password:          *password,
-		ClientID:          *clientID,
-		ClientSecret:      *clientSecret,
-	}
-
-	client, err := cfclient.NewClient(config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	apps, err := client.ListAppsByQuery(url.Values{})
+func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) {
+	apps, err := cf.ListAppsByQuery(url.Values{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,8 +67,35 @@ func main() {
 			appWatchers[app.Guid] = appWatcher
 			go appWatcher.Run()
 		}
-		// spot apps that have been deleted
+		// TODO: spot apps that have been deleted
 	}
+}
+
+func main() {
+	kingpin.Parse()
+
+	config := &cfclient.Config{
+		ApiAddress:        *apiEndpoint,
+		SkipSslValidation: *skipSSLValidation,
+		Username:          *username,
+		Password:          *password,
+		ClientID:          *clientID,
+		ClientSecret:      *clientSecret,
+	}
+
+	cf, err := cfclient.NewClient(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		for {
+			log.Println("checking for new apps")
+			checkForNewApps(cf, config)
+
+			time.Sleep(time.Duration(*updateFrequency) * time.Second)
+		}
+	}()
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *prometheusBindPort), nil))
