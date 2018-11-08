@@ -134,8 +134,8 @@ func (m *AppWatcher) Run() error {
 			// m.errorChan <- err
 		case updatedApp, ok := <-m.appUpdateChan:
 			if !ok {
-				m.appUpdateChan = nil
 				conn.Close()
+				m.scaleTo(0)
 				break
 			}
 
@@ -151,6 +151,10 @@ func (m *AppWatcher) UpdateApp(app cfclient.App) {
 	m.appUpdateChan <- app
 }
 
+func (m *AppWatcher) Close() {
+	close(m.appUpdateChan)
+}
+
 func (m *AppWatcher) scaleTo(newInstanceCount int) {
 	currentInstanceCount := len(m.metricsForInstance)
 
@@ -162,7 +166,7 @@ func (m *AppWatcher) scaleTo(newInstanceCount int) {
 		for i := currentInstanceCount; i > newInstanceCount; i-- {
 			m.unregisterInstanceMetrics(i-1)
 		}
-		m.metricsForInstance = m.metricsForInstance[0:len(m.metricsForInstance)-1]
+		m.metricsForInstance = m.metricsForInstance[0:newInstanceCount]
 	}
 }
 

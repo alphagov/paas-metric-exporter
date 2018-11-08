@@ -55,7 +55,12 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	running := map[string]bool{}
+
 	for _, app := range apps {
+		running[app.Guid] = true
+
 		appWatcher, present := appWatchers[app.Guid]
 		if present {
 			appWatcher.UpdateApp(app)
@@ -68,6 +73,13 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) {
 			go appWatcher.Run()
 		}
 		// TODO: spot apps that have been deleted
+	}
+
+	for appGuid, appWatcher := range appWatchers {
+		if ok := running[appGuid]; !ok {
+			appWatcher.Close()
+			delete(appWatchers, appGuid)
+		}
 	}
 }
 
