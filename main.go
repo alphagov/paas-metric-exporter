@@ -50,6 +50,15 @@ const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
 
 var appWatchers = make(map[string]*events.AppWatcher)
 
+func createNewWatcher(config *cfclient.Config, app cfclient.App) {
+	appWatcher := events.NewAppWatcher(config, app, prometheus.WrapRegistererWith(
+		prometheus.Labels{"guid": app.Guid, "app": app.Name},
+		prometheus.DefaultRegisterer,
+	))
+	appWatchers[app.Guid] = appWatcher
+	go appWatcher.Run()
+}
+
 func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) error {
 	apps, err := cf.ListAppsByQuery(url.Values{})
 	if err != nil {
@@ -65,12 +74,7 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) error {
 		if present {
 			appWatcher.UpdateApp(app)
 		} else {
-			appWatcher := events.NewAppWatcher(config, app, prometheus.WrapRegistererWith(
-				prometheus.Labels{"guid": app.Guid, "app": app.Name},
-				prometheus.DefaultRegisterer,
-			))
-			appWatchers[app.Guid] = appWatcher
-			go appWatcher.Run()
+			createNewWatcher(config, app)
 		}
 		// TODO: spot apps that have been deleted
 	}
