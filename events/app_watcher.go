@@ -3,6 +3,7 @@ package events
 import (
 	"crypto/tls"
 	"fmt"
+
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/cloudfoundry/noaa/consumer"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
@@ -44,9 +45,9 @@ func NewInstanceMetrics(instanceIndex int, registerer prometheus.Registerer) Ins
 }
 
 func NewAppWatcher(
-	config        *cfclient.Config,
-	app           cfclient.App,
-	registerer    prometheus.Registerer,
+	config *cfclient.Config,
+	app cfclient.App,
+	registerer prometheus.Registerer,
 ) *AppWatcher {
 	appWatcher := &AppWatcher{
 		metricsForInstance: make([]InstanceMetrics, 0),
@@ -112,12 +113,7 @@ func (m *AppWatcher) Run() error {
 			}
 			switch message.GetEventType() {
 			case sonde_events.Envelope_ContainerMetric:
-				metric := message.GetContainerMetric()
-				index := metric.GetInstanceIndex()
-				if int(index) < len(m.metricsForInstance) {
-					instance := m.metricsForInstance[index]
-					instance.cpu.Set(metric.GetCpuPercentage())
-				}
+				m.processContainerMetric(message.GetContainerMetric())
 			}
 		case err, ok := <-errs:
 			if !ok {
@@ -145,6 +141,14 @@ func (m *AppWatcher) Run() error {
 	}
 }
 
+func (m *AppWatcher) processContainerMetric(metric *sonde_events.ContainerMetric) {
+	index := metric.GetInstanceIndex()
+	if int(index) < len(m.metricsForInstance) {
+		instance := m.metricsForInstance[index]
+		instance.cpu.Set(metric.GetCpuPercentage())
+	}
+}
+
 func (m *AppWatcher) AppName() string {
 	return m.app.Name
 }
@@ -166,7 +170,7 @@ func (m *AppWatcher) scaleTo(newInstanceCount int) {
 		}
 	} else {
 		for i := currentInstanceCount; i > newInstanceCount; i-- {
-			m.unregisterInstanceMetrics(i-1)
+			m.unregisterInstanceMetrics(i - 1)
 		}
 		m.metricsForInstance = m.metricsForInstance[0:newInstanceCount]
 	}
