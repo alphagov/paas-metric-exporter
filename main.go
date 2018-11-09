@@ -74,7 +74,6 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) error {
 		} else {
 			createNewWatcher(config, app)
 		}
-		// TODO: spot apps that have been deleted
 	}
 
 	for appGuid, appWatcher := range appWatchers {
