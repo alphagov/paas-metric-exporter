@@ -66,7 +66,7 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) error {
 			appWatcher.UpdateApp(app)
 		} else {
 			appWatcher := events.NewAppWatcher(config, app, prometheus.WrapRegistererWith(
-				prometheus.Labels{"guid": app.Guid},
+				prometheus.Labels{"guid": app.Guid, "app": app.Name},
 				prometheus.DefaultRegisterer,
 			))
 			appWatchers[app.Guid] = appWatcher
