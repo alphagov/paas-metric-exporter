@@ -18,44 +18,38 @@ var _ = Describe("AppWatcher", func() {
 
 
   BeforeEach(func() {
+    var (
+      AppWatcher *AppWatcher
+      // Apps        []cfclient.App
+      registerer prometheus.Registerer
+    )
 
+    config := &cfclient.Config{
+      ApiAddress:        "some/endpoint",
+      SkipSslValidation: true,
+      Username:          "barry",
+      Password:          "password",
+      ClientID:          "dummy_client_id",
+      ClientSecret:      "dummy_client_secret",
+    }
 
-  //  log.Printf("app: %v", Apps)
+    apps := []cfclient.App{
+      {Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/123"},
+    }
 
-    // appWatcher = NewAppWatcher(config, apps[0], registerer)
+    log.Printf("app: %v", apps)
+    log.Printf("app: %v", config)
+    registerer = prometheus.DefaultRegisterer
+    AppWatcher = NewAppWatcher(config, apps[0], registerer)
+
+    log.Printf("app: %v", AppWatcher)
 
   })
   AfterEach(func() {})
 
   Describe("AppName", func() {
-
     It("knows the name of its application", func() {
-      var (
-        // AppWatcher *AppWatcher
-        // Apps        []cfclient.App
-        registerer prometheus.Registerer
-      )
-
-      config := &cfclient.Config{
-        ApiAddress:        "some/endpoint",
-        SkipSslValidation: true,
-        Username:          "barry",
-        Password:          "password",
-        ClientID:          "dummy_client_id",
-        ClientSecret:      "dummy_client_secret",
-      }
-
-      apps := []cfclient.App{
-        {Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/123"},
-      }
-
-      log.Printf("app: %v", apps)
-      log.Printf("app: %v", config)
-      registerer = prometheus.DefaultRegisterer
-      appWatcher := NewAppWatcher(config, apps[0], registerer)
-
-      log.Printf("app: %v", appWatcher)
-      Expect(appWatcher.AppName()).To(Equal("foo"))
+      Expect(AppWatcher.AppName()).To(Equal("foo"))
     })
   })
 })
