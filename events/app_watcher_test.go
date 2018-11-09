@@ -2,6 +2,8 @@
 package events
 
 import (
+  "log"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -13,31 +15,47 @@ import (
 )
 
 var _ = Describe("AppWatcher", func() {
-  var (
-    appWatcher *AppWatcher
-    app        cfclient.App
-    registerer prometheus.Registerer
-  )
+
 
   BeforeEach(func() {
 
-    config := &cfclient.Config{
-      ApiAddress:        "some/endpoint",
-      SkipSslValidation: true,
-      Username:          "barry",
-      Password:          "password",
-      ClientID:          "dummy_client_id",
-      ClientSecret:      "dummy_client_secret",
-    }
 
-    appWatcher = NewAppWatcher(config, app,  registerer)
+  //  log.Printf("app: %v", Apps)
+
+    // appWatcher = NewAppWatcher(config, apps[0], registerer)
 
   })
   AfterEach(func() {})
 
   Describe("AppName", func() {
-    It("update the metrics name", func() {
-      Expect("baz").To(Equal("bar"))
+
+    It("knows the name of its application", func() {
+      var (
+        // AppWatcher *AppWatcher
+        // Apps        []cfclient.App
+        registerer prometheus.Registerer
+      )
+
+      config := &cfclient.Config{
+        ApiAddress:        "some/endpoint",
+        SkipSslValidation: true,
+        Username:          "barry",
+        Password:          "password",
+        ClientID:          "dummy_client_id",
+        ClientSecret:      "dummy_client_secret",
+      }
+
+      apps := []cfclient.App{
+        {Guid: "33333333-3333-3333-3333-333333333333", Instances: 1, Name: "foo", SpaceURL: "/v2/spaces/123"},
+      }
+
+      log.Printf("app: %v", apps)
+      log.Printf("app: %v", config)
+      registerer = prometheus.DefaultRegisterer
+      appWatcher := NewAppWatcher(config, apps[0], registerer)
+
+      log.Printf("app: %v", appWatcher)
+      Expect(appWatcher.AppName()).To(Equal("foo"))
     })
   })
 })
