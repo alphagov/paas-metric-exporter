@@ -46,8 +46,6 @@ var (
 	locketClientKey    = kingpin.Flag("locket-client-key", "File path to Locket client key.").Default("").OverrideDefaultFromEnvar("LOCKET_CLIENT_KEY").String()
 )
 
-const JONS_WAY_GUID = "41176abe-3bb1-4271-ae3e-a1edc46e048b"
-
 var appWatchers = make(map[string]*events.AppWatcher)
 
 func createNewWatcher(config *cfclient.Config, app cfclient.App) {
