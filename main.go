@@ -70,8 +70,16 @@ func checkForNewApps(cf *cfclient.Client, config *cfclient.Config) error {
 
 		appWatcher, present := appWatchers[app.Guid]
 		if present {
-			appWatcher.UpdateApp(app)
+			if appWatcher.AppName() != app.Name {
+				// Name changed, stop and restart
+				appWatcher.Close()
+				createNewWatcher(config, app)
+			} else {
+				// notify watcher that instances may have changed
+				appWatcher.UpdateApp(app)
+			}
 		} else {
+			// new app
 			createNewWatcher(config, app)
 		}
 	}

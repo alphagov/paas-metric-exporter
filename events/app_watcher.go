@@ -145,6 +145,10 @@ func (m *AppWatcher) Run() error {
 	}
 }
 
+func (m *AppWatcher) AppName() string {
+	return m.app.Name
+}
+
 func (m *AppWatcher) UpdateApp(app cfclient.App) {
 	m.appUpdateChan <- app
 }
