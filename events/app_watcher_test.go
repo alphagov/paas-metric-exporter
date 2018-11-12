@@ -10,6 +10,7 @@ import (
 	"github.com/cloudfoundry-community/go-cfclient"
 	sonde_events "github.com/cloudfoundry/sonde-go/events"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 var _ = Describe("AppWatcher", func() {
@@ -54,18 +55,14 @@ var _ = Describe("AppWatcher", func() {
 		It("sets a CPU metric on an instance", func() {
 			cpuPercentage := 10.0
 			var instanceIndex int32 = 0
-			container_metric := sonde_events.ContainerMetric{
+			containerMetric := sonde_events.ContainerMetric{
 				CpuPercentage: &cpuPercentage,
 				InstanceIndex: &instanceIndex,
 			}
-			appWatcher.processContainerMetric(&container_metric)
-			metrics, _ := registerer.Gather()
-			// log.Printf("%+v", metrics)
-			log.Printf("%v", metrics[0].Metric[0].Gauge)
-			// This prints a number that's far greater than 10...
-			log.Printf("%d", metrics[0].Metric[0].Gauge.Value)
-			// Expect(appWatcher.processContainerMetric(&container_metric).To(Equal(metrics[0].Name))
-		})
+			appWatcher.processContainerMetric(&containerMetric)
+			cpuGauge := appWatcher.metricsForInstance[instanceIndex].cpu
 
+			Expect(testutil.ToFloat64(cpuGauge)).To(Equal(cpuPercentage))
+		})
 	})
 })
