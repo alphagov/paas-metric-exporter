@@ -4,6 +4,12 @@ This application consumes container metrics off the Cloud Foundry Doppler daemon
 
 The application will get metrics for all apps that the user has access to.
 
+To use paas-metric-exporter with GOV.UK PaaS, see [the documentation](https://docs.cloud.service.gov.uk/monitoring_apps.html#metrics-exporter-app-with-statsd).
+
+:warning: Prometheus support in paas-metric-exporter is deprecated. Please use [alphagov/paas-prometheus-exporter](https://github.com/alphagov/paas-prometheus-exporter) instead.
+
+## History
+
 The application is based on [`pivotal-cf/graphite-nozzle`](https://github.com/pivotal-cf/graphite-nozzle).
 
 ## Available metrics
