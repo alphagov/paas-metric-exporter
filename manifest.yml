@@ -3,6 +3,7 @@ applications:
 - name: metric-exporter
   memory: 100M
   instances: 1
+  stack: cflinuxfs3
   buildpacks:
     - go_buildpack
   env:
