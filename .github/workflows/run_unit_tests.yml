@@ -1,0 +1,35 @@
+name: Run tests
+on: [push, pull_request]
+env:
+  GO_VERSION: 1.11
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: "Install Go ${{env.GO_VERSION}}"
+        uses: actions/setup-go@v2
+        with:
+          go-version: "${{env.GO_VERSION}}"
+
+      - name: Install Ginkgo CLI
+        run: |
+          # Commit hash matches that in `gopkg.lock`
+          go get -u github.com/onsi/ginkgo/ginkgo@07d85e6b10c4289c7d612f9b13f45ba36f66d55b
+        env:
+          GO111MODULE: on
+
+      - name: Install Consul binary
+        run: |
+          # Consul binary is assumed to be in $PATH
+          # by one of the dependencies
+          wget -q -O consul.zip "https://releases.hashicorp.com/consul/1.10.3/consul_1.10.3_linux_amd64.zip"
+          unzip -d /usr/local/bin/ consul.zip
+
+      - name: Run tests
+        run: |
+          make test
