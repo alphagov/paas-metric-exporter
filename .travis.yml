@@ -1,8 +1,7 @@
 language: go
 
 go:
-  - 1.11
-  - master
+  - 1.16
 
 install:
   # Prevent default install task that does a `go get -t ./...`
